@@ -1,7 +1,7 @@
 ---
 name: bambu-studio-ai
-description: "Full-stack Bambu Lab 3D printing: control any printer (A1 Mini, A1, P1S, P2S, X1C, X1E, H2C, H2S, H2D), generate 3D models from text/images, monitor prints with AI, get notifications. Use when user mentions: printer, print, 3D, filament, nozzle, bed, temperature, Bambu, AMS, spool, layer, G-code, laser, STL, model, generate, slice. Also for print failure diagnosis, material advice, and multi-color management."
-version: "0.9.0"
+description: "From chat to finished print — the first full-pipeline AI 3D printing skill. Connect your Bambu Lab printer, pick a 3D API, and let your agent search, generate, analyze, repair, preview, print & monitor. All 9 Bambu printers supported."
+version: "0.10.6"
 author: TieGaier
 metadata:
   openclaw:
@@ -90,9 +90,28 @@ keywords:
 
 # 🖨️ Bambu Studio AI
 
+The first full-pipeline AI 3D printing skill — from a chat message to a finished print.
 
+Connect your Bambu Lab printer + pick a 3D generation API, and your agent handles everything:
+search → generate → analyze → repair → preview → print → monitor.
 
-Full-stack Bambu Lab 3D printing skill: **Idea → 3D Model → Print → Monitor → Notify**.
+Supports all 9 Bambu Lab printers. Cloud + LAN dual mode.
+
+## Installation
+
+```bash
+clawhub install bambu-studio-ai
+```
+
+Or clone from GitHub:
+```bash
+git clone https://github.com/heyixuan2/bambu-studio-ai.git ~/.agents/skills/bambu-studio-ai
+pip3 install bambulabs-api bambu-lab-cloud-api requests trimesh
+```
+
+📦 **GitHub:** https://github.com/heyixuan2/bambu-studio-ai
+
+---
 
 ## Quick Reference
 
