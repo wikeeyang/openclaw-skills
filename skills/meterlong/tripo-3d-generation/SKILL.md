@@ -1,257 +1,154 @@
+---
+name: tripo-3d-generation
+description: Generate 3D models from text or images. Create characters, objects, scenes, game assets, products for e-commerce, architecture models, 3D printing files. Auto-rig characters and apply walk/run/attack animations. Stylize models as LEGO, Voxel, Minecraft. Convert to GLB, FBX, OBJ, STL, USDZ, 3MF.
+read_when:
+  - User wants to create, generate, or make a 3D model
+  - User wants to convert text or an image into a 3D object
+  - User asks about 3D modeling, 3D generation, or 3D assets
+  - User mentions 3D model, 3D object, mesh, or 3D file
+  - User wants a character model, game asset, or 3D prop
+  - User asks about rigging, skeleton, or animating a 3D character
+  - User wants to make a model walk, run, jump, or do animations
+  - User wants LEGO, voxel, pixel, or Minecraft style 3D
+  - User wants to convert or export a model to STL, FBX, OBJ, USDZ, GLB
+  - User mentions 3D printing or wants an STL file
+  - User wants a product model for e-commerce or AR
+  - User asks about sculpting, figurines, miniatures, or statues
+  - User wants to visualize something in 3D
+  - User asks to make something look like LEGO or blocky
+---
+
 # Tripo 3D Generation
 
-Turn text or images into production-ready 3D models with **sculpture-level geometry**, sharp edges, and PBR materials — in under 90 seconds.
+You are a **3D creation expert** with deep knowledge in modeling, rigging, animation, stylization, and format pipelines. You help users — including those with zero 3D experience — turn their ideas into production-ready 3D models.
 
-**10 free generations included. No API key, no signup, no credit card.**
+You have access to Tripo AI, the most advanced AI 3D generation platform. You can generate models, rig them with skeletons, apply animations, stylize them, convert formats, and re-texture them — all through this skill.
 
-## Features
+**10 free generations. No API key, no signup, no credit card.**
 
-- **Text-to-3D**: Describe any object in natural language → get a production-ready 3D model
-- **Image-to-3D**: Upload a single photo → AI reconstructs it in full 3D with accurate geometry
-- **Sculpture-Level Geometry**: Industry-leading mesh quality with sharp edges, clean topology, and precise surface detail
-- **PBR Materials**: Physically-based rendering textures (albedo, normal, roughness, metallic) out of the box
-- **Auto-Rigging & Animation**: Automatic skeleton binding with 10+ preset animations — walk, run, jump, climb, slash, shoot, idle, hurt, fall, turn
-- **Stylization**: Transform models into 6 artistic styles — Cartoon, Clay, Alien, Christmas, Retro Steampunk, and more
-- **Smart Low-Poly**: AI-generated low-poly meshes with hand-crafted topology, perfect for mobile games
-- **Quad Mesh Output**: Clean quad topology for subdivision workflows (Maya, Blender, ZBrush)
-- **Auto Real-World Scale**: Automatically sizes models to real-world dimensions (meters)
-- **6 Export Formats**: GLB, FBX, OBJ, STL, USDZ, 3MF — ready for any pipeline
+## How to Understand User Intent
+
+Users rarely say "call action=generate with type=text_to_model". They say things like "make me a robot" or "I need a sword for my game". Here's how to map their intent:
+
+| User says something like... | You should do... |
+|---|---|
+| "make me a 3D ..." / "create a model of..." / "I want a 3D ..." | `generate` with a well-crafted prompt |
+| "convert this image to 3D" / "turn this photo into a model" | `generate` with `image_url` |
+| "make it walk/run/attack" / "add animation to this character" | Full pipeline: `generate` → `rig` → `animate` |
+| "animate this" / "add walking animation" / "make it move" | If already have model task_id: `rig` → `animate` |
+| "make it LEGO" / "voxel style" / "pixel art 3D" | `generate` (if no model yet) → `stylize` |
+| "export as FBX" / "convert to USDZ" / "save as STL" | `convert` with the right format |
+| "for 3D printing" / "I want to print this" | `generate` → `convert` to STL with appropriate `face_limit` |
+| "game character" / "character for my game" | `generate` (add "T-pose" to prompt) → `rig` → `animate` |
+| "product visualization" / "product model for AR" | `generate` → optionally `convert` to USDZ for AR |
+| "change the texture" / "re-texture this model" | `texture` |
+| "can this be rigged?" / "is this model animatable?" | `prerigcheck` |
+
+## Key Decision Rules
+
+1. **Always improve the user's prompt** — if they say "a chair", generate with "a modern minimalist wooden chair with clean lines and natural wood grain". Add material, style, and detail cues.
+2. **For characters/creatures that need animation** — always add "T-pose" or "A-pose" to the prompt. This makes rigging succeed.
+3. **For 3D printing** — recommend STL format, suggest `face_limit: 50000` for detailed prints.
+4. **For Apple AR** — convert to USDZ.
+5. **For game engines (Unity/Unreal)** — GLB or FBX.
+6. **For quick concepts** — use `model_version: "Turbo-v1.0-20250506"` (5-10 seconds).
+7. **For production quality** — use default `v3.0-20250812` (90 seconds, best geometry).
+8. **Animation workflow is sequential**: generate → prerigcheck → rig → animate. You MUST wait for each step to complete (poll `status`) before proceeding to the next. The `animate` action requires the rig task's ID, NOT the original model's ID.
+9. **Post-processing is free** — rig, animate, stylize, convert, texture do NOT consume the user's free credits.
+
+## Complete Workflow
+
+```
+Step 1: generate → get task_id
+Step 2: status(task_id) → poll until SUCCESS (every 5-10s)
+Step 3: download(task_id) → get model URLs
+
+Optional post-processing (all free, all need task_id from a completed task):
+  → prerigcheck(task_id) → check output.riggable
+  → rig(task_id) → get rig_task_id → animate(rig_task_id, animation)
+  → stylize(task_id, style)
+  → convert(task_id, convert_format)
+  → texture(task_id)
+```
+
+## Available Actions
+
+| Action | Required Params | Optional Params |
+|--------|----------------|-----------------|
+| `generate` | `prompt` OR `image_url` OR `files` | `model_version`, `format` |
+| `status` | `task_id` | — |
+| `download` | `task_id` | — |
+| `credits` | — | — |
+| `prerigcheck` | `task_id` | — |
+| `rig` | `task_id` | `out_format` (glb/fbx), `spec` (tripo/mixamo) |
+| `animate` | `task_id` (from rig!), `animation` | `out_format`, `bake_animation` |
+| `stylize` | `task_id`, `style` | `block_size` |
+| `convert` | `task_id`, `convert_format` | `face_limit`, `quad`, `force_symmetry`, `texture_size` |
+| `texture` | `task_id` | `texture_quality`, `texture_alignment` |
+| `refine` | `task_id` | — (v1.x models only) |
+
+## Animation Presets
+
+`preset:idle` · `preset:walk` · `preset:run` · `preset:jump` · `preset:climb` · `preset:slash` · `preset:shoot` · `preset:hurt` · `preset:fall` · `preset:turn`
+
+## Stylization Styles
+
+`lego` · `voxel` · `voronoi` · `minecraft`
+
+## Convert Formats
+
+`GLTF` · `USDZ` · `FBX` · `OBJ` · `STL` · `3MF`
 
 ## Model Versions
 
-| Model | Speed | Quality | Best For |
-|-------|-------|---------|----------|
-| `Turbo-v1.0-20250506` | ~5-10s | ★★★☆☆ | Fastest prototyping, concept exploration |
-| `v3.0-20250812` **(default)** | ~90s | ★★★★★ | Production assets, sculpture-level precision, sharp edges |
-| `v2.5-20250123` | ~25-30s | ★★★★☆ | Fast + balanced, good for quick iterations |
-| `v2.0-20240919` | ~20s | ★★★★☆ | Accurate geometry with PBR materials |
-| `v1.4-20240625` | ~10s | ★★★☆☆ | Legacy, realistic textures |
+| Model | Speed | Best For |
+|-------|-------|----------|
+| `Turbo-v1.0-20250506` | ~5-10s | Quick concepts, rapid prototyping |
+| `v3.0-20250812` **(default)** | ~90s | Production quality, sculpture-level precision |
+| `v2.5-20250123` | ~25-30s | Fast + balanced |
+| `v2.0-20240919` | ~20s | Accurate geometry with PBR |
+| `v1.4-20240625` | ~10s | Legacy |
 
-## Quick Start
+## Prompt Engineering Tips
 
-### Text-to-3D
+When crafting the prompt for `generate`, enhance the user's description:
 
-```json
-{ "action": "generate", "prompt": "a medieval castle with stone walls and towers" }
-```
-
-### Image-to-3D
-
-```json
-{ "action": "generate", "image_url": "https://example.com/photo.jpg" }
-```
-
-### Check Progress
-
-```json
-{ "action": "status", "task_id": "your-task-id" }
-```
-
-### Download Model
-
-```json
-{ "action": "download", "task_id": "your-task-id" }
-```
-
-### Check Credits
-
-```json
-{ "action": "credits" }
-```
-
-## Workflow
-
-1. Call `generate` with a prompt or image → receive `task_id`
-2. Poll `status` every 5-10 seconds → track progress (0-100%)
-3. When status is `SUCCESS` → model URLs are returned
-4. Use `download` to get `pbr_model_url` (recommended), `model_url`, and `rendered_image_url`
-
-## Use Case Examples
-
-### 1. Game Asset — Weapon
-
-```json
-{
-  "action": "generate",
-  "prompt": "a legendary fantasy sword with dragon engravings, glowing blue runes on the blade, ornate golden crossguard, leather-wrapped grip. Game-ready, PBR materials.",
-  "model_version": "v3.0-20250812"
-}
-```
-
-### 2. E-Commerce — Product Visualization
-
-```json
-{
-  "action": "generate",
-  "prompt": "a premium wireless headphone, matte black with rose gold accents, leather ear cushions, sleek modern design for product showcase",
-  "model_version": "v3.0-20250812"
-}
-```
-
-### 3. Architecture — Building
-
-```json
-{
-  "action": "generate",
-  "prompt": "a modern minimalist house, two stories, large glass windows, flat roof, concrete and wood exterior with surrounding landscape",
-  "model_version": "v3.0-20250812"
-}
-```
-
-### 4. 3D Printing — Figurine
-
-```json
-{
-  "action": "generate",
-  "prompt": "a detailed tabletop miniature of a dwarf warrior holding a battle axe and round shield, high detail for resin 3D printing",
-  "model_version": "v3.0-20250812",
-  "format": "stl"
-}
-```
-
-### 5. Rapid Prototyping — Quick Concept
-
-```json
-{
-  "action": "generate",
-  "prompt": "a cute robot mascot with round body, antenna, and big expressive eyes",
-  "model_version": "Turbo-v1.0-20250506"
-}
-```
-
-### 6. AR/VR — Interactive Object
-
-```json
-{
-  "action": "generate",
-  "prompt": "a treasure chest that opens, filled with gold coins and gems. Realistic wood and metal materials for VR experience"
-}
-```
-
-### 7. Character for Animation
-
-```json
-{
-  "action": "generate",
-  "prompt": "a stylized knight character in full plate armor, T-pose, suitable for rigging and animation",
-  "model_version": "v3.0-20250812"
-}
-```
-
-After generation, use Tripo's auto-rigging to add a skeleton and apply walk/run/attack animations automatically.
-
-## Output Formats
-
-| Format | Extension | Best For |
-|--------|-----------|----------|
-| GLB | .glb | Universal — web, Unity, Unreal, AR/VR, three.js |
-| FBX | .fbx | Animation, Maya, 3ds Max, game engines |
-| OBJ | .obj | Universal exchange, Blender import |
-| STL | .stl | 3D printing (FDM, SLA, resin) |
-| USDZ | .usdz | Apple AR Quick Look, Vision Pro |
-| 3MF | .3mf | Advanced 3D printing with color/material data |
-
-## Advanced Parameters
-
-| Parameter | Values | Description |
-|-----------|--------|-------------|
-| `model_version` | See table above | Controls quality/speed tradeoff |
-| `format` | glb, fbx, obj, stl | Output 3D format |
-| `prompt` | Any text (max 1024 chars) | Text description for generation |
-| `image_url` | Public URL (JPEG/PNG) | Photo for image-to-3D conversion |
-
-## Animation Presets (via Tripo Platform)
-
-Tripo supports **automatic rigging + animation** for character models:
-
-| Animation | Description |
-|-----------|-------------|
-| `idle` | Standing idle loop |
-| `walk` | Walking cycle |
-| `run` | Running cycle |
-| `jump` | Jump animation |
-| `climb` | Climbing motion |
-| `slash` | Melee attack swing |
-| `shoot` | Ranged attack |
-| `hurt` | Hit reaction |
-| `fall` | Falling animation |
-| `turn` | Turning in place |
-
-## Stylization Options (via Tripo Platform)
-
-Transform any generated model into artistic styles:
-
-| Style | Description |
-|-------|-------------|
-| Cartoon | Bright colors, exaggerated proportions |
-| Clay | Handmade clay/dough appearance |
-| Alien | Organic, otherworldly aesthetic |
-| Christmas | Holiday-themed with festive materials |
-| Retro Steampunk | Victorian-era mechanical style |
-| LEGO | Brick-built appearance |
-| Voxel | Minecraft-style blocky aesthetic |
-| Voronoi | Organic cellular pattern |
-
-## Prompt Tips for Best Results
-
-### Be Specific About Shape & Material
-- **Good**: "a weathered wooden rocking chair with curved armrests and woven seat"
-- **Bad**: "a chair"
-
-### Specify Style & Use Case
-- **Realistic**: "a photorealistic leather briefcase with brass buckles"
-- **Stylized**: "a low-poly cartoon fox with flat shading"
-- **Game-ready**: "a sci-fi crate prop, game-ready, optimized topology"
-
-### Include Material Details
-- "matte black finish", "brushed aluminum", "rough stone texture"
-- "translucent glass", "polished marble", "worn leather"
-
-### For Characters
-- Mention pose: "T-pose" or "A-pose" for animation-ready models
-- Specify style: "stylized", "realistic", "chibi"
+- **Shape**: curved, angular, smooth, detailed, ornate, minimalist
+- **Material**: wood, metal, stone, glass, leather, fabric, ceramic, plastic
+- **Surface**: matte, glossy, weathered, polished, rough, brushed
+- **Style**: realistic, stylized, low-poly, cartoon, photorealistic, sci-fi, fantasy
+- **For characters**: always add "T-pose" and mention body type
+- **For printing**: add "high detail, solid mesh, suitable for 3D printing"
 
 ## Credit System
 
 | Tier | Credits | Setup |
 |------|---------|-------|
-| **Free Trial** | 10 generations | Nothing — works instantly |
-| **Own API Key** | Unlimited (2,000 free credits on new Tripo accounts) | Sign up at [platform.tripo3d.ai](https://platform.tripo3d.ai/) |
+| Free Trial | 10 generations | Nothing — works instantly |
+| Own API Key | Unlimited (2,000 free on new Tripo accounts) | [platform.tripo3d.ai](https://platform.tripo3d.ai/) |
 
-When free credits run out, the skill provides step-by-step guidance to create a free Tripo account and get your own API key.
-
-### Getting Your Own Key
-
+When credits run out, guide the user:
 1. Visit [platform.tripo3d.ai](https://platform.tripo3d.ai/) → Sign Up (free)
-2. Go to [API Keys page](https://platform.tripo3d.ai/api-keys)
-3. Generate a new key (starts with `tsk_`) — **copy immediately, shown only once!**
-4. Configure: `openclaw config set skill.tripo-3d-generation.TRIPO_API_KEY <your-key>`
-5. Done — unlimited generations with your own account
+2. Go to [API Keys](https://platform.tripo3d.ai/api-keys) → Generate key (starts with `tsk_`)
+3. `openclaw config set skill.tripo-3d-generation.TRIPO_API_KEY <key>`
 
-## Why Tripo?
+## External Endpoints
 
-| Feature | Tripo | Others |
-|---------|-------|--------|
-| Geometry Quality | Sculpture-level, sharp edges | Often blobby or low-detail |
-| Auto-Rigging | Built-in skeleton + 10 animations | Usually requires manual work |
-| Speed | 5s (Turbo) to 90s (v3.0) | Often 3-10+ minutes |
-| Formats | 6 formats (GLB/FBX/OBJ/STL/USDZ/3MF) | Usually 1-2 formats |
-| PBR Materials | Albedo + Normal + Roughness + Metallic | Often diffuse-only |
-| Free Credits | 10 free, no signup needed | Most require API key upfront |
+| Endpoint | Method | Data Sent | Purpose |
+|----------|--------|-----------|---------|
+| `tripo-proxy.darknessporo.workers.dev/api/generate` | POST | prompt/image_url, anonymous user_id | Create generation task |
+| `tripo-proxy.darknessporo.workers.dev/api/task` | POST | task_id, parameters, anonymous user_id | Post-processing task |
+| `tripo-proxy.darknessporo.workers.dev/api/status/:id` | GET | task_id | Poll progress |
+| `tripo-proxy.darknessporo.workers.dev/api/download/:id` | GET | task_id | Get download URLs |
+| `tripo-proxy.darknessporo.workers.dev/api/credits` | GET | anonymous user_id | Check credits |
 
-## Error Handling
+## Security & Privacy
 
-| Error | Cause | Solution |
-|-------|-------|---------|
-| `quota_exceeded` | 10 free credits used up | Follow the setup guide to get your own free API key |
-| `task_not_ready` | Model still generating | Wait and poll status again |
-| Task `FAILED` | Generation failed | Try a different or more specific prompt |
-| `missing_user_id` | Client error | Automatic — no user action needed |
+- **No personal data collected**: Anonymous `user_id` via SHA-256 hash of hostname (16 hex chars, irreversible).
+- **Modules used**: `crypto.createHash` (anonymous ID), `os.hostname` (hash input only). No filesystem, no shell, no persistence.
+- **API key**: Sent only to proxy over HTTPS. Never logged or stored elsewhere.
+- **What leaves the machine**: Text prompts, image URLs, anonymous user_id. Nothing else.
 
-## About Tripo
+## Trust Statement
 
-[Tripo](https://www.tripo3d.ai/) is the most advanced AI 3D generation platform by VAST AI Research. Used by professionals in gaming, architecture, e-commerce, 3D printing, film/VFX, and education. The platform supports the full 3D creation pipeline: generation → rigging → animation → stylization → export.
-
-- Website: [tripo3d.ai](https://www.tripo3d.ai/)
-- API Platform: [platform.tripo3d.ai](https://platform.tripo3d.ai/)
-- API Documentation: [platform.tripo3d.ai/docs](https://platform.tripo3d.ai/docs/generation)
+By using this skill, your text prompts and image URLs are sent to Tripo AI (via Cloudflare Worker proxy) for 3D generation. Only install if you trust [Tripo AI](https://www.tripo3d.ai/). No data stored beyond a per-user credit counter.

@@ -90,19 +90,20 @@ export async function run(params, ctx) {
   const userApiKey = ctx.secrets?.TRIPO_API_KEY || undefined;
 
   if (action === "generate") {
-    const { prompt, image_url, model_version, format } = params;
+    const { prompt, image_url, files, model_version, format } = params;
 
-    if (!prompt && !image_url) {
-      return { error: "Either 'prompt' (for text-to-3D) or 'image_url' (for image-to-3D) is required." };
+    if (!prompt && !image_url && !files) {
+      return { error: "Either 'prompt' (for text-to-3D), 'image_url' (for image-to-3D), or 'files' (array of image URLs for multiview-to-3D) is required." };
     }
 
-    const type = image_url ? "image_to_model" : "text_to_model";
+    const type = files ? "multiview_to_model" : image_url ? "image_to_model" : "text_to_model";
 
     const data = await postJson(`${PROXY_BASE}/api/generate`, {
       user_id: userId,
       prompt,
       type,
       image_url,
+      files,
       model_version: model_version || "v3.0-20250812",
       format: format || "glb",
       user_api_key: userApiKey,
@@ -175,5 +176,167 @@ export async function run(params, ctx) {
     };
   }
 
-  return { error: `Unknown action: '${action}'. Supported actions: generate, status, download, credits` };
+  if (action === "rig") {
+    const { task_id, out_format, spec } = params;
+    if (!task_id) {
+      return { error: "task_id is required for action='rig'. Provide the task_id of the generated model." };
+    }
+
+    const body = { user_id: userId, type: "animate_rig", original_model_task_id: task_id };
+    if (out_format) body.out_format = out_format;
+    if (spec) body.spec = spec;
+    if (userApiKey) body.user_api_key = userApiKey;
+
+    const data = await postJson(`${PROXY_BASE}/api/task`, body);
+    if (data.error) return { error: data.error, message: data.message || "Failed to create rig task." };
+
+    const rigTaskId = data.data?.task_id || data.task_id;
+    return {
+      task_id: rigTaskId,
+      status: "CREATED",
+      message: `Rig task created! Task ID: ${rigTaskId}. Call action='status' with this task_id to check progress. Once complete, use the rig task_id with action='animate' to apply animations.${formatCreditsInfo(data)}`,
+    };
+  }
+
+  if (action === "animate") {
+    const { task_id, animation, out_format, bake_animation } = params;
+    if (!task_id) {
+      return { error: "task_id is required for action='animate'. Provide the task_id of the RIGGED model (from action='rig')." };
+    }
+    if (!animation) {
+      return { error: "animation is required. Use one of: preset:idle, preset:walk, preset:run, preset:jump, preset:climb, preset:slash, preset:shoot, preset:hurt, preset:fall, preset:turn" };
+    }
+
+    const body = { user_id: userId, type: "animate_retarget", original_model_task_id: task_id, animation };
+    if (out_format) body.out_format = out_format;
+    if (bake_animation != null) body.bake_animation = bake_animation;
+    if (userApiKey) body.user_api_key = userApiKey;
+
+    const data = await postJson(`${PROXY_BASE}/api/task`, body);
+    if (data.error) return { error: data.error, message: data.message || "Failed to create animate task." };
+
+    const animTaskId = data.data?.task_id || data.task_id;
+    return {
+      task_id: animTaskId,
+      status: "CREATED",
+      message: `Animation task created! Task ID: ${animTaskId}. Call action='status' with this task_id to check progress. Note: the model must be rigged first (action='rig') before animating.${formatCreditsInfo(data)}`,
+    };
+  }
+
+  if (action === "prerigcheck") {
+    const { task_id } = params;
+    if (!task_id) {
+      return { error: "task_id is required for action='prerigcheck'." };
+    }
+
+    const body = { user_id: userId, type: "animate_prerigcheck", original_model_task_id: task_id };
+    if (userApiKey) body.user_api_key = userApiKey;
+
+    const data = await postJson(`${PROXY_BASE}/api/task`, body);
+    if (data.error) return { error: data.error, message: data.message || "Failed to create pre-rig check task." };
+
+    const checkTaskId = data.data?.task_id || data.task_id;
+    return {
+      task_id: checkTaskId,
+      status: "CREATED",
+      message: `Pre-rig check task created! Task ID: ${checkTaskId}. Call action='status' with this task_id to see if the model can be rigged.${formatCreditsInfo(data)}`,
+    };
+  }
+
+  if (action === "stylize") {
+    const { task_id, style, block_size } = params;
+    if (!task_id) {
+      return { error: "task_id is required for action='stylize'." };
+    }
+    if (!style) {
+      return { error: "style is required. Use one of: lego, voxel, voronoi, minecraft" };
+    }
+
+    const body = { user_id: userId, type: "stylize_model", original_model_task_id: task_id, style };
+    if (block_size != null) body.block_size = block_size;
+    if (userApiKey) body.user_api_key = userApiKey;
+
+    const data = await postJson(`${PROXY_BASE}/api/task`, body);
+    if (data.error) return { error: data.error, message: data.message || "Failed to create stylize task." };
+
+    const stylizeTaskId = data.data?.task_id || data.task_id;
+    return {
+      task_id: stylizeTaskId,
+      status: "CREATED",
+      message: `Stylize task created (${style})! Task ID: ${stylizeTaskId}. Call action='status' with this task_id to check progress.${formatCreditsInfo(data)}`,
+    };
+  }
+
+  if (action === "convert") {
+    const { task_id, convert_format, quad, face_limit, texture_size, force_symmetry } = params;
+    if (!task_id) {
+      return { error: "task_id is required for action='convert'." };
+    }
+    if (!convert_format) {
+      return { error: "convert_format is required. Use one of: GLTF, USDZ, FBX, OBJ, STL, 3MF" };
+    }
+
+    const body = { user_id: userId, type: "convert_model", original_model_task_id: task_id, format: convert_format };
+    if (quad != null) body.quad = quad;
+    if (face_limit != null) body.face_limit = face_limit;
+    if (texture_size != null) body.texture_size = texture_size;
+    if (force_symmetry != null) body.force_symmetry = force_symmetry;
+    if (userApiKey) body.user_api_key = userApiKey;
+
+    const data = await postJson(`${PROXY_BASE}/api/task`, body);
+    if (data.error) return { error: data.error, message: data.message || "Failed to create convert task." };
+
+    const convertTaskId = data.data?.task_id || data.task_id;
+    return {
+      task_id: convertTaskId,
+      status: "CREATED",
+      message: `Convert task created (to ${convert_format})! Task ID: ${convertTaskId}. Call action='status' with this task_id to check progress.${formatCreditsInfo(data)}`,
+    };
+  }
+
+  if (action === "texture") {
+    const { task_id, texture, pbr, texture_quality, texture_alignment } = params;
+    if (!task_id) {
+      return { error: "task_id is required for action='texture'." };
+    }
+
+    const body = { user_id: userId, type: "texture_model", original_model_task_id: task_id };
+    if (texture) body.texture = texture;
+    if (pbr != null) body.pbr = pbr;
+    if (texture_quality) body.texture_quality = texture_quality;
+    if (texture_alignment) body.texture_alignment = texture_alignment;
+    if (userApiKey) body.user_api_key = userApiKey;
+
+    const data = await postJson(`${PROXY_BASE}/api/task`, body);
+    if (data.error) return { error: data.error, message: data.message || "Failed to create texture task." };
+
+    const textureTaskId = data.data?.task_id || data.task_id;
+    return {
+      task_id: textureTaskId,
+      status: "CREATED",
+      message: `Re-texture task created! Task ID: ${textureTaskId}. Call action='status' with this task_id to check progress.${formatCreditsInfo(data)}`,
+    };
+  }
+
+  if (action === "refine") {
+    const { task_id } = params;
+    if (!task_id) {
+      return { error: "task_id is required for action='refine'. Provide the draft model's task_id (only works for models < v2.0)." };
+    }
+
+    const body = { user_id: userId, type: "refine_model", draft_model_task_id: task_id };
+    if (userApiKey) body.user_api_key = userApiKey;
+
+    const data = await postJson(`${PROXY_BASE}/api/task`, body);
+    if (data.error) return { error: data.error, message: data.message || "Failed to create refine task." };
+
+    const refineTaskId = data.data?.task_id || data.task_id;
+    return {
+      task_id: refineTaskId,
+      status: "CREATED",
+      message: `Refine task created! Task ID: ${refineTaskId}. Call action='status' with this task_id to check progress. Note: refine only works for draft models generated with versions < v2.0.${formatCreditsInfo(data)}`,
+    };
+  }
+
+  return { error: `Unknown action: '${action}'. Supported actions: generate, status, download, credits, rig, animate, prerigcheck, stylize, convert, texture, refine` };
 }

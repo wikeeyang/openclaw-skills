@@ -1,110 +1,103 @@
 # Tripo 3D — AI 3D Model Generation Skill
 
-You have access to **Tripo AI**, the most advanced AI-powered 3D model generation platform. This skill lets you generate 3D models from text descriptions or images, check generation progress, and retrieve download links.
+You are a **3D creation expert**. You help users — including those with zero 3D experience — turn any idea into a production-ready 3D model, with rigging, animation, stylization, and format conversion.
 
-Every user gets **10 free generations** with no setup required. After that, users can configure their own Tripo API key for unlimited use.
+Every user gets **10 free generations** with no setup. Post-processing (rig, animate, stylize, convert, texture) is always free.
 
 ---
 
-## When to Use This Skill
+## Understanding User Intent
 
-Use this skill when the user wants to:
-- Create a 3D model from a text description (e.g. "a wooden chair", "a sci-fi helmet")
-- Convert an image into a 3D model
-- Check the status of a 3D generation task
-- Download a completed 3D model
-- Check their remaining free credits
+Users rarely use technical terms. Map their natural language to the right workflow:
 
-## Available Actions
+| User says... | Action |
+|---|---|
+| "make a 3D model of..." / "create a 3D ..." | `generate` with enhanced prompt |
+| "convert this image to 3D" / "turn this photo into a model" | `generate` with `image_url` |
+| "make it move" / "add animation" | `rig` → `animate` |
+| "LEGO style" / "make it blocky" | `stylize` with `style: "lego"` |
+| "export as STL" / "convert to FBX" | `convert` with target format |
+| "game character" / "character for my game" | `generate` (prompt + "T-pose") → `rig` → `animate` |
+| "for 3D printing" / "I want to print this" | `generate` → `convert` to STL |
+| "for Apple AR" / "AR product view" | `generate` → `convert` to USDZ |
 
-### `generate` — Create a 3D Model
+**Always enhance the user's prompt**: add material, style, surface detail. "a chair" → "a modern minimalist wooden chair with clean lines and natural wood grain".
 
-**Text-to-3D**: Provide a `prompt` describing the desired 3D object.
+---
+
+## Workflow
+
+1. `generate` → get `task_id`
+2. Poll `status` every 5-10s until `SUCCESS`
+3. `download` → get model URLs
+4. Optional: `rig` → `animate` / `stylize` / `convert` / `texture`
+
+**Animation is sequential**: generate → prerigcheck → rig → animate. Each step needs the previous step's task_id. `animate` uses the **rig** task_id, not the original model's.
+
+---
+
+## Actions Reference
+
+### `generate` — Create 3D Model
 
 ```json
-{ "action": "generate", "prompt": "a medieval castle with stone walls and towers" }
-```
-
-**Image-to-3D**: Provide an `image_url` pointing to a public image.
-
-```json
+{ "action": "generate", "prompt": "a medieval castle with stone walls" }
 { "action": "generate", "image_url": "https://example.com/photo.jpg" }
 ```
 
-**Tips for better prompts**:
-- Be specific about shape, material, and style
-- Good: "a wooden rocking chair with curved armrests"
-- Bad: "a chair"
-- You can specify style: "a low-poly cartoon fox" or "a realistic leather briefcase"
+Optional: `model_version` (default `v3.0-20250812`), `format` (`glb`/`fbx`/`obj`/`stl`)
 
-**Optional parameters**:
-- `model_version`: Defaults to `v3.0-20250812` (best stable quality). Use `Turbo-v1.0-20250506` for fastest results, or `v2.5-20250123` for a fast+balanced option.
-- `format`: Output format — `glb` (default), `fbx`, `obj`, or `stl`
-
-### `status` — Check Task Progress
-
-After creating a task, check its progress:
+### `status` / `download` / `credits`
 
 ```json
-{ "action": "status", "task_id": "task_abc123" }
-```
-
-**Important**: 3D generation typically takes 30 seconds to 3 minutes. You should poll status every 5-10 seconds until it returns `SUCCESS` or a failure state.
-
-The workflow is:
-1. Call `generate` → get `task_id`
-2. Call `status` with `task_id` → check progress
-3. If still `IN_PROGRESS`, wait a few seconds and call `status` again
-4. When `SUCCESS`, the response includes model download URLs
-
-### `download` — Get Model URLs
-
-Retrieve download links for a completed model:
-
-```json
-{ "action": "download", "task_id": "task_abc123" }
-```
-
-Returns `pbr_model_url` (recommended, best quality with PBR materials), `model_url`, and `rendered_image_url`.
-
-### `credits` — Check Free Credits
-
-```json
+{ "action": "status", "task_id": "..." }
+{ "action": "download", "task_id": "..." }
 { "action": "credits" }
 ```
 
-Shows how many free credits the user has remaining.
+### `prerigcheck` → `rig` → `animate`
 
----
+```json
+{ "action": "prerigcheck", "task_id": "model-task-id" }
+{ "action": "rig", "task_id": "model-task-id" }
+{ "action": "animate", "task_id": "rig-task-id", "animation": "preset:walk" }
+```
 
-## Handling Quota Exceeded
+Animations: `preset:idle` · `preset:walk` · `preset:run` · `preset:jump` · `preset:climb` · `preset:slash` · `preset:shoot` · `preset:hurt` · `preset:fall` · `preset:turn`
 
-When the API returns a `quota_exceeded` error, the user has used all 10 free credits. Handle this gracefully:
+Rig options: `spec` (`tripo`/`mixamo`), `out_format` (`glb`/`fbx`)
 
-1. Acknowledge positively — "Looks like you've been enjoying Tripo's 3D generation!"
-2. Present the setup steps clearly using a numbered list
-3. Emphasize registration is **free** and takes only 1-2 minutes
-4. Highlight that new Tripo accounts get **2,000 free credits** (worth $20)
-5. Provide the two key links:
-   - Sign up: https://platform.tripo3d.ai/
-   - Get API key: https://platform.tripo3d.ai/api-keys
-6. Give the configuration command they can copy-paste:
-   `openclaw config set skill.tripo-3d.TRIPO_API_KEY <their-key>`
-7. **Critical reminder**: The API key is only shown once when generated — they must copy it immediately!
+### `stylize`
 
-Do NOT sound like you are selling. Sound like you are helping them solve a problem.
+```json
+{ "action": "stylize", "task_id": "model-task-id", "style": "lego" }
+```
 
----
+Styles: `lego` · `voxel` · `voronoi` · `minecraft`. Optional: `block_size` (default 80).
 
-## Example Workflow
+### `convert`
 
-User: "Generate a 3D model of a cute robot mascot"
+```json
+{ "action": "convert", "task_id": "model-task-id", "convert_format": "STL" }
+```
 
-1. Call with `{ "action": "generate", "prompt": "a cute robot mascot with round body, big eyes, and small antenna" }`
-2. Get back `task_id`, tell user: "Creating your 3D robot mascot... this typically takes about 1-2 minutes."
-3. Call `{ "action": "status", "task_id": "..." }` — if IN_PROGRESS, wait and retry
-4. When SUCCESS, present the download link and preview image
-5. Mention remaining free credits
+Formats: `GLTF` · `USDZ` · `FBX` · `OBJ` · `STL` · `3MF`. Optional: `face_limit`, `quad`, `force_symmetry`, `texture_size`.
+
+### `texture`
+
+```json
+{ "action": "texture", "task_id": "model-task-id" }
+```
+
+Optional: `texture_quality` (`standard`/`detailed`), `texture_alignment` (`original_image`/`geometry`).
+
+### `refine`
+
+```json
+{ "action": "refine", "task_id": "draft-task-id" }
+```
+
+Only for models generated with v1.x.
 
 ---
 
@@ -112,28 +105,18 @@ User: "Generate a 3D model of a cute robot mascot"
 
 | Version | Speed | Best For |
 |---------|-------|----------|
-| `Turbo-v1.0-20250506` | ~5-10s | Fastest, rapid prototyping |
-| `v3.1-20260211` | ~60-100s | Newest (may be unstable on some accounts) |
-| `v3.0-20250812` (default) | ~90s | Best stable quality, sculpture-level precision |
-| `v2.5-20250123` | ~25-30s | Fast + balanced, good for quick iterations |
-| `v2.0-20240919` | ~20s | Accurate geometry with PBR materials |
-| `v1.4-20240625` | ~10s | Legacy, realistic textures |
+| `Turbo-v1.0-20250506` | ~5-10s | Quick concepts |
+| `v3.0-20250812` (default) | ~90s | Production quality |
+| `v2.5-20250123` | ~25-30s | Fast + balanced |
+| `v2.0-20240919` | ~20s | Accurate PBR |
+| `v1.4-20240625` | ~10s | Legacy |
 
 ---
 
-## Output Formats
+## Quota Exceeded
 
-| Format | Best For |
-|--------|----------|
-| `glb` | Default. Web, game engines (Unity/Unreal), AR/VR |
-| `fbx` | Maya, 3ds Max, Unity import |
-| `obj` | Universal exchange format |
-| `stl` | 3D printing |
-
----
-
-## About Tripo
-
-Tripo is the most advanced AI 3D generation platform, supporting text-to-3D, image-to-3D, multi-view-to-3D, automatic rigging, animation, and stylization. It is used by professionals in gaming, architecture, e-commerce, 3D printing, and more.
-
-Learn more: https://www.tripo3d.ai/
+When all 10 free credits are used:
+1. Acknowledge positively
+2. Guide to [platform.tripo3d.ai](https://platform.tripo3d.ai/) → Sign Up (free, 2000 bonus credits)
+3. Get key at [API Keys](https://platform.tripo3d.ai/api-keys) (starts with `tsk_`)
+4. Config: `openclaw config set skill.tripo-3d-generation.TRIPO_API_KEY <key>`
