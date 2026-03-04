@@ -5,12 +5,59 @@ description: Feishu (Lark) group chat messaging guide for OpenClaw. Includes Raw
 
 # Feishu Group Chat Guide
 
+## Quick Start: Configure renderMode
+
+**⚠️ IMPORTANT: Set renderMode explicitly for stable message formatting**
+
+```yaml
+# Recommended configuration
+channels:
+  feishu:
+    renderMode: "card"  # Always use card format
+```
+
+**Why?** The default "auto" mode causes unpredictable format switching (raw vs card), creating poor user experience.
+
+**Configuration:**
+```bash
+openclaw config set channels.feishu.renderMode "card"
+openclaw gateway restart
+```
+
+**Verify:**
+```bash
+openclaw config get channels.feishu.renderMode
+```
+
+---
+
 ## Prerequisites
 
 1. **In a Feishu group** - OpenClaw connected to Feishu
-2. **Know member IDs**:
+2. **Configure renderMode** - Set to "card" for consistent formatting
+3. **Know member IDs**:
    - Human: `open_id` (ou_xxx format)
    - Bot: `App ID` (cli_xxx format)
+
+---
+
+## 0. Message Format Stability
+
+### The Problem: Raw vs Card Mixing
+
+Without proper `renderMode` configuration, messages can inconsistently appear as:
+- **Raw text**: Plain markdown source, no formatting
+- **Card format**: Rendered markdown with syntax highlighting, tables, links
+
+### The Solution: Explicit renderMode
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `auto` | Detects content, uses card for code/tables | ❌ **Avoid** - unpredictable |
+| `raw` | Always plain text | Simple text-only responses |
+| `card` | Always interactive card | ✅ **Recommended** - consistent |
+
+**Recommended:** `renderMode: "card"` for all production use.
 
 ---
 
@@ -297,6 +344,55 @@ Need to @ mention
 4. **message tool only sends Raw mode** - No Markdown rendering
 5. **@everyone requires group permission**
 6. **Avoid unsupported styles in Card mode** (blockquote, inline code, horizontal rule)
+
+---
+
+## 6. Configuration Reference
+
+### renderMode Settings
+
+**Location:** OpenClaw config file or environment
+
+**Quick Setup:**
+```bash
+# Set to card mode (recommended)
+openclaw config set channels.feishu.renderMode "card"
+openclaw gateway restart
+```
+
+**Environment-specific configurations:**
+
+**Development:**
+```yaml
+channels:
+  feishu:
+    renderMode: "raw"  # Easier debugging
+    dmPolicy: "open"   # Easier testing
+```
+
+**Production:**
+```yaml
+channels:
+  feishu:
+    renderMode: "card"      # Consistent formatting
+    dmPolicy: "pairing"     # Security
+    requireMention: true    # Avoid spam
+```
+
+### Troubleshooting
+
+**Messages appear as raw markdown:**
+1. Check: `openclaw config get channels.feishu.renderMode`
+2. Set: `openclaw config set channels.feishu.renderMode "card"`
+3. Restart: `openclaw gateway restart`
+
+**Format switches between raw and card:**
+- Cause: Using `renderMode: "auto"`
+- Fix: Change to `"card"` or `"raw"` explicitly
+
+**Proactive messages not using card:**
+- Expected: Proactive messages (via `message` tool) always use plain text
+- Workaround: Have user send a message first, then reply
 
 ---
 
