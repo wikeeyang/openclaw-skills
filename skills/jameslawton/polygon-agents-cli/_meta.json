@@ -3,9 +3,15 @@
   "slug": "polygon-agents-cli",
   "displayName": "Polygon Agents CLI",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1772196819121,
-    "commit": "https://github.com/openclaw/skills/commit/a92dffd79ffeabf39a2ecefda289bd436b248016"
+    "version": "1.0.2",
+    "publishedAt": 1772619459524,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1772196819121,
+      "commit": "https://github.com/openclaw/skills/commit/a92dffd79ffeabf39a2ecefda289bd436b248016"
+    }
+  ]
 }
