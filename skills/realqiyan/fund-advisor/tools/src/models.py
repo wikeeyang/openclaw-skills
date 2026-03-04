@@ -15,6 +15,35 @@ class FundType(Enum):
     CLOSED_END = "closed_end"  # 封闭式基金
 
 
+class GroupColumn(Enum):
+    """分组统计列名"""
+    FUND_CODE = "fund_code"           # 基金代码
+    FUND_NAME = "fund_name"           # 基金名称
+    FUND_MANAGER = "fund_manager"     # 基金管理人
+    FUND_ACCOUNT = "fund_account"     # 基金账户
+    TRADE_ACCOUNT = "trade_account"   # 交易账户
+    SALES_AGENCY = "sales_agency"     # 销售机构
+    INVEST_TYPE = "invest_type"       # 投资类型
+    CURRENCY = "currency"             # 结算币种
+    DIVIDEND_METHOD = "dividend_method"  # 分红方式
+
+    @classmethod
+    def get_display_name(cls, column: 'GroupColumn') -> str:
+        """获取列的中文显示名称"""
+        names = {
+            cls.FUND_CODE: "基金代码",
+            cls.FUND_NAME: "基金名称",
+            cls.FUND_MANAGER: "基金管理人",
+            cls.FUND_ACCOUNT: "基金账户",
+            cls.TRADE_ACCOUNT: "交易账户",
+            cls.SALES_AGENCY: "销售机构",
+            cls.INVEST_TYPE: "投资类型",
+            cls.CURRENCY: "结算币种",
+            cls.DIVIDEND_METHOD: "分红方式",
+        }
+        return names.get(column, column.value)
+
+
 @dataclass
 class FundHolding:
     """公募基金持有信息"""
@@ -94,15 +123,3 @@ class FundHoldingsDetail:
     top_stocks: List[StockHolding] = field(default_factory=list)
     top_bonds: List[BondHolding] = field(default_factory=list)
     data_update_time: Optional[datetime] = None
-
-
-@dataclass
-class FundStatistics:
-    """基金统计数据"""
-    total_asset_value: float  # 总资产
-    fund_count: int  # 基金数量
-    holding_count: int  # 持仓记录数
-    currency_distribution: dict  # 币种分布
-    fund_type_distribution: dict  # 基金类型分布
-    manager_distribution: dict  # 基金管理人分布
-    sales_agency_distribution: dict  # 销售机构分布

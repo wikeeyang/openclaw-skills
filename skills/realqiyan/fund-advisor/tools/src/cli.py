@@ -3,21 +3,48 @@
 基金持仓管理系统 - CLI主程序
 """
 import sys
-from typing import Optional
 
 import click
 from rich.console import Console
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Confirm
 
 from .database import Database
 from .csv_importer import CSVImporter
+from .excel_importer import ExcelImporter
 from .mcp_service import MCPService
 from .statistics import Statistics
 from .env_checker import EnvChecker
 from .config import get_db_path
+from .models import GroupColumn
 
 
 console = Console()
+
+
+# 分组列名选项
+COLUMN_CHOICES = [col.value for col in GroupColumn]
+
+
+# 字段帮助说明（用于 query 和 group 命令的 epilog）
+# 注意：使用 \b (block) 让 Click 保留原始格式，不重新换行
+COLUMN_HELP_EPILOG = """
+\b
+支持的查询/分组字段:
+  fund_code        基金代码    基金的唯一标识代码
+  fund_name        基金名称    基金的完整名称
+  fund_manager     基金管理人  基金管理公司名称
+  fund_account     基金账户    持有该基金的账户编号
+  trade_account    交易账户    进行交易的账户编号
+  sales_agency     销售机构    销售该基金的机构名称
+  invest_type      投资类型    基金投资类型(如股票型、债券型)
+  currency         结算币种    资产结算使用的货币类型
+  dividend_method  分红方式    基金的分红方式(如现金分红)
+
+\b
+示例:
+  fund-tools query -c fund_name -v 货币    查询名称包含"货币"的基金
+  fund-tools group -c fund_manager         按基金管理人分组统计
+"""
 
 
 @click.group()
@@ -83,6 +110,34 @@ def import_csv(ctx, csv_path):
 
 
 @cli.command()
+@click.argument("excel_path", type=click.Path(exists=True))
+@click.pass_context
+def import_excel(ctx, excel_path):
+    """从Excel文件导入持仓数据（支持.xlsx和.xls格式）"""
+    database = ctx.obj["database"]
+    importer = ExcelImporter(database)
+
+    console.print(f"[cyan]正在导入: {excel_path}[/]")
+
+    # 验证Excel
+    is_valid, errors = importer.validate_excel(excel_path)
+    if not is_valid:
+        for error in errors:
+            console.print(f"[red]错误: {error}[/]")
+        return
+
+    # 导入数据
+    success, fail, errors = importer.import_from_excel(excel_path)
+
+    console.print(f"\n[green]导入完成![/]")
+    console.print(f"  成功: {success} 条")
+    if fail > 0:
+        console.print(f"  失败: {fail} 条")
+        for error in errors[:10]:  # 只显示前10条错误
+            console.print(f"  [red]{error}[/]")
+
+
+@cli.command()
 @click.pass_context
 def reset(ctx):
     """清空所有持仓记录"""
@@ -96,16 +151,6 @@ def reset(ctx):
 # ==================== 持仓管理命令 ====================
 
 @cli.command()
-@click.option("--account", help="按基金账户筛选")
-@click.pass_context
-def holdings(ctx, account):
-    """查看持仓列表"""
-    database = ctx.obj["database"]
-    stats = Statistics(database)
-    stats.show_holdings_list(account)
-
-
-@cli.command()
 @click.argument("fund_code")
 @click.pass_context
 def detail(ctx, fund_code):
@@ -115,42 +160,44 @@ def detail(ctx, fund_code):
     stats.show_fund_detail(fund_code)
 
 
-@cli.command()
+# ==================== 分组统计和查询命令 ====================
+
+@cli.command(epilog=COLUMN_HELP_EPILOG)
+@click.option("-c", "--column", required=True, type=click.Choice(COLUMN_CHOICES),
+              help="分组字段名称")
+@click.option("-f", "--format", "output_format", type=click.Choice(["table", "json"]),
+              default="table", help="输出格式: table(表格) 或 json")
 @click.pass_context
-def overview(ctx):
-    """显示投资组合总览"""
+def group(ctx, column, output_format):
+    """按指定字段分组统计持仓数据
+
+    对持仓记录按指定字段进行分组，并计算每组的份额、市值等汇总信息。
+    支持表格和 JSON 两种输出格式，便于数据处理和脚本集成。
+    """
     database = ctx.obj["database"]
     stats = Statistics(database)
-    stats.show_overview()
+    group_column = GroupColumn(column)
+    stats.show_group_statistics(group_column, output_format)
 
 
-@cli.command()
-@click.option("--limit", default=10, help="显示数量")
+@cli.command(epilog=COLUMN_HELP_EPILOG)
+@click.option("-c", "--column", required=True, type=click.Choice(COLUMN_CHOICES),
+              help="查询字段名称")
+@click.option("-v", "--value", required=True, help="查询值（支持模糊匹配）")
+@click.option("-f", "--format", "output_format", type=click.Choice(["table", "json"]),
+              default="table", help="输出格式: table(表格) 或 json")
 @click.pass_context
-def managers(ctx, limit):
-    """显示基金管理人分布"""
+def query(ctx, column, value, output_format):
+    """按条件查询持仓明细记录
+
+    根据指定字段和值筛选持仓记录，支持模糊匹配。
+    查询结果展示匹配记录的详细信息，包括份额、市值等。
+    支持表格和 JSON 两种输出格式，便于数据处理和脚本集成。
+    """
     database = ctx.obj["database"]
     stats = Statistics(database)
-    stats.show_manager_distribution(limit)
-
-
-@cli.command()
-@click.option("--limit", default=10, help="显示数量")
-@click.pass_context
-def agencies(ctx, limit):
-    """显示销售机构分布"""
-    database = ctx.obj["database"]
-    stats = Statistics(database)
-    stats.show_sales_agency_distribution(limit)
-
-
-@cli.command()
-@click.pass_context
-def invest_type(ctx):
-    """显示投资类型分布"""
-    database = ctx.obj["database"]
-    stats = Statistics(database)
-    stats.show_invest_type_distribution()
+    group_column = GroupColumn(column)
+    stats.show_query_result(group_column, value, output_format)
 
 
 # ==================== 数据同步命令 ====================
@@ -176,7 +223,7 @@ def sync(ctx, info, detail, sync_all, batch_size):
 
     mcp = MCPService(batch_size=batch_size)
 
-    fund_codes = database.get_fund_codes_from_holdings()
+    fund_codes = database.get_all_fund_code()
 
     if not fund_codes:
         console.print("[yellow]没有找到持仓基金代码，请先导入持仓数据[/]")
@@ -184,48 +231,19 @@ def sync(ctx, info, detail, sync_all, batch_size):
 
     console.print(f"[cyan]发现 {len(fund_codes)} 只基金需要同步，批次大小: {batch_size}[/]")
 
+    if not info and not detail and not sync_all:
+        sync_all = True
+
     if sync_all or info:
         # 同步基金基础信息
         console.print("\n[cyan]正在同步基金基础信息...[/]")
-        missing_codes = database.get_missing_fund_info_codes()
-        codes_to_sync = missing_codes if missing_codes else fund_codes
-        console.print(f"  需要同步: {len(codes_to_sync)} 只")
-
-        if codes_to_sync:
-            success, fail = mcp.sync_fund_info(codes_to_sync, database)
-            console.print(f"  [green]成功: {success}[/], [red]失败: {fail}[/]")
+        console.print(f"  需要同步: {len(fund_codes)} 只")
+        success, fail = mcp.sync_fund_info(fund_codes, database)
+        console.print(f"  [green]成功: {success}[/], [red]失败: {fail}[/]")
 
     if sync_all or detail:
         # 同步基金持仓详情
         console.print("\n[cyan]正在同步基金持仓详情...[/]")
-        missing_codes = database.get_missing_fund_detail_codes()
-        codes_to_sync = missing_codes if missing_codes else fund_codes
-        console.print(f"  需要同步: {len(codes_to_sync)} 只")
-
-        if codes_to_sync:
-            success, fail = mcp.sync_fund_holdings(codes_to_sync, database)
-            console.print(f"  [green]成功: {success}[/], [red]失败: {fail}[/]")
-
-    if not info and not detail and not sync_all:
-        console.print("[yellow]请指定同步类型: --info, --detail, 或 --all[/]")
-
-
-# ==================== 统计和导出命令 ====================
-
-@cli.command()
-@click.pass_context
-def stats(ctx):
-    """显示所有统计视图"""
-    database = ctx.obj["database"]
-    stats = Statistics(database)
-    stats.show_all_stats()
-
-
-@cli.command()
-@click.option("--output", default="report.txt", help="输出文件路径")
-@click.pass_context
-def export(ctx, output):
-    """导出统计报告"""
-    database = ctx.obj["database"]
-    stats = Statistics(database)
-    stats.export_report(output)
+        console.print(f"  需要同步: {len(fund_codes)} 只")
+        success, fail = mcp.sync_fund_holdings(fund_codes, database)
+        console.print(f"  [green]成功: {success}[/], [red]失败: {fail}[/]")

@@ -1,14 +1,14 @@
 """
 基金持仓管理系统 - 统计视图功能
 """
-from datetime import datetime
-from typing import Dict, List, Any, Optional
+import json
+from typing import Any
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
 from src.database import Database
-from src.models import FundHolding, FundInfo, FundHoldingsDetail
+from src.models import FundHolding, GroupColumn
 
 
 class Statistics:
@@ -18,141 +18,196 @@ class Statistics:
         self.database = database
         self.console = Console()
 
-    def show_overview(self):
-        """显示总览视图"""
-        stats = self.database.get_statistics()
+    def show_group_statistics(self, column: GroupColumn, output_format: str = "table"):
+        """显示分组统计
 
-        # 创建总览面板
-        total_asset = stats['total_asset_value']
-        fund_count = stats['fund_count']
-        holding_count = stats['holding_count']
+        Args:
+            column: 分组列名（GroupColumn 枚举）
+            output_format: 输出格式，"table" 或 "json"
+        """
+        data = self.database.get_group_statistics(column.value)
 
-        overview_text = f"""
-[bold cyan]总资产价值:[/] ¥{total_asset:,.2f}
-[bold cyan]持仓基金数:[/] {fund_count} 只
-[bold cyan]持仓记录数:[/] {holding_count} 条
-[bold cyan]基金基础信息:[/] {stats['info_count']} 条
-[bold cyan]基金持仓详情:[/] {stats['detail_count']} 条
-"""
-        self.console.print(Panel(overview_text, title="[bold green]投资组合总览[/]", border_style="green"))
-
-    def show_manager_distribution(self, limit: int = 10):
-        """显示基金管理人分布"""
-        stats = self.database.get_statistics()
-        manager_dist = stats['manager_distribution']
-
-        if not manager_dist:
-            self.console.print("[yellow]暂无基金管理人分布数据[/]")
+        if not data:
+            if output_format == "json":
+                result = {"error": f"暂无{GroupColumn.get_display_name(column)}分布数据"}
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+            else:
+                self.console.print(f"[yellow]暂无{GroupColumn.get_display_name(column)}分布数据[/]")
             return
 
-        table = Table(title=f"基金管理人分布 (Top {limit})", show_header=True, header_style="bold cyan")
-        table.add_column("基金管理人", style="cyan")
-        table.add_column("持仓数", justify="right", style="blue")
-        table.add_column("资产价值", justify="right", style="green")
-        table.add_column("占比", justify="right", style="yellow")
+        display_name = GroupColumn.get_display_name(column)
+        total = sum(item['total'] or 0 for item in data)
+        total_count = sum(item['count'] for item in data)
 
-        total = sum(m['total'] for m in manager_dist.values())
-        sorted_managers = sorted(manager_dist.items(), key=lambda x: x[1]['total'], reverse=True)[:limit]
+        if output_format == "json":
+            # JSON 格式输出
+            items = []
+            for item in data:
+                item_total = item['total'] or 0
+                percentage = (item_total / total * 100) if total > 0 else 0
+                items.append({
+                    "name": str(item['name'] or "未知"),
+                    "count": item['count'],
+                    "total": item_total,
+                    "percentage": round(percentage, 2)
+                })
+            result = {
+                "column": display_name,
+                "items": items,
+                "summary": {
+                    "total_count": total_count,
+                    "total_value": round(total, 2)
+                }
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            # 表格格式输出
+            table = Table(title=f"{display_name}分布", show_header=True, header_style="bold cyan")
+            table.add_column(display_name, style="cyan")
+            table.add_column("持仓数", justify="right", style="blue")
+            table.add_column("资产价值", justify="right", style="green")
+            table.add_column("占比", justify="right", style="yellow")
 
-        for manager, data in sorted_managers:
-            percentage = (data['total'] / total * 100) if total > 0 else 0
-            table.add_row(
-                manager or "未知",
-                str(data['count']),
-                f"¥{data['total']:,.2f}",
-                f"{percentage:.2f}%"
-            )
+            for item in data:
+                item_total = item['total'] or 0
+                percentage = (item_total / total * 100) if total > 0 else 0
+                table.add_row(
+                    str(item['name'] or "未知"),
+                    str(item['count']),
+                    f"¥{item_total:,.2f}",
+                    f"{percentage:.2f}%"
+                )
 
-        self.console.print(table)
+            self.console.print(table)
 
-    def show_sales_agency_distribution(self, limit: int = 10):
-        """显示销售机构分布"""
-        stats = self.database.get_statistics()
-        agency_dist = stats['sales_agency_distribution']
+            # 显示汇总信息
+            self.console.print(f"\n[green]总计: {total_count} 条记录, 资产价值: ¥{total:,.2f}[/]")
 
-        if not agency_dist:
-            self.console.print("[yellow]暂无销售机构分布数据[/]")
-            return
+    def show_query_result(self, column: GroupColumn, value: str, output_format: str = "table"):
+        """显示查询结果（展示所有导入字段）
 
-        table = Table(title=f"销售机构分布 (Top {limit})", show_header=True, header_style="bold cyan")
-        table.add_column("销售机构", style="cyan")
-        table.add_column("持仓数", justify="right", style="blue")
-        table.add_column("资产价值", justify="right", style="green")
-        table.add_column("占比", justify="right", style="yellow")
-
-        total = sum(a['total'] for a in agency_dist.values())
-        sorted_agencies = sorted(agency_dist.items(), key=lambda x: x[1]['total'], reverse=True)[:limit]
-
-        for agency, data in sorted_agencies:
-            percentage = (data['total'] / total * 100) if total > 0 else 0
-            table.add_row(
-                agency or "未知",
-                str(data['count']),
-                f"¥{data['total']:,.2f}",
-                f"{percentage:.2f}%"
-            )
-
-        self.console.print(table)
-
-    def show_invest_type_distribution(self):
-        """显示投资类型分布"""
-        stats = self.database.get_statistics()
-        invest_dist = stats.get('invest_type_distribution', {})
-
-        if not invest_dist:
-            self.console.print("[yellow]暂无投资类型分布数据，请先运行 sync --info 同步基金信息[/]")
-            return
-
-        table = Table(title="投资类型分布", show_header=True, header_style="bold cyan")
-        table.add_column("投资类型", style="cyan")
-        table.add_column("持仓数", justify="right", style="blue")
-        table.add_column("资产价值", justify="right", style="green")
-        table.add_column("占比", justify="right", style="yellow")
-
-        total = sum(i['total'] for i in invest_dist.values())
-        sorted_types = sorted(invest_dist.items(), key=lambda x: x[1]['total'], reverse=True)
-
-        for invest_type, data in sorted_types:
-            percentage = (data['total'] / total * 100) if total > 0 else 0
-            table.add_row(
-                invest_type or "未知",
-                str(data['count']),
-                f"¥{data['total']:,.2f}",
-                f"{percentage:.2f}%"
-            )
-
-        self.console.print(table)
-
-    def show_holdings_list(self, fund_account: str = None, limit: int = 20):
-        """显示持仓列表"""
-        holdings = self.database.get_fund_holdings(fund_account)
+        Args:
+            column: 查询列名（GroupColumn 枚举）
+            value: 查询值
+            output_format: 输出格式，"table" 或 "json"
+        """
+        holdings = self.database.query_holdings(column.value, value)
 
         if not holdings:
-            self.console.print("[yellow]暂无持仓数据[/]")
+            if output_format == "json":
+                result = {"error": f"未找到匹配 '{value}' 的持仓记录"}
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+            else:
+                self.console.print(f"[yellow]未找到匹配 '{value}' 的持仓记录[/]")
             return
 
-        table = Table(title=f"持仓列表 (共{len(holdings)}条)", show_header=True, header_style="bold cyan")
-        table.add_column("基金代码", style="cyan", width=10)
-        table.add_column("基金名称", style="white", width=25)
-        table.add_column("持有份额", justify="right", style="blue", width=12)
-        table.add_column("净值", justify="right", style="yellow", width=8)
-        table.add_column("资产价值", justify="right", style="green", width=12)
-        table.add_column("销售机构", style="magenta", width=18)
+        display_name = GroupColumn.get_display_name(column)
+        total_value = sum(h.asset_value for h in holdings)
 
-        for holding in holdings[:limit]:
-            table.add_row(
-                holding.fund_code,
-                holding.fund_name[:25] if len(holding.fund_name) > 25 else holding.fund_name,
-                f"{holding.holding_shares:,.2f}",
-                f"{holding.nav:.4f}",
-                f"¥{holding.asset_value:,.2f}",
-                holding.sales_agency[:18] if len(holding.sales_agency) > 18 else holding.sales_agency
+        if output_format == "json":
+            # JSON 格式输出
+            items = []
+            for h in holdings:
+                items.append({
+                    "fund_code": h.fund_code,
+                    "fund_name": h.fund_name or "",
+                    "share_class": h.share_class or "",
+                    "fund_manager": h.fund_manager or "",
+                    "fund_account": h.fund_account or "",
+                    "trade_account": h.trade_account or "",
+                    "sales_agency": h.sales_agency or "",
+                    "holding_shares": round(h.holding_shares, 2) if h.holding_shares else 0,
+                    "share_date": str(h.share_date) if h.share_date else "",
+                    "nav": round(h.nav, 4) if h.nav else None,
+                    "nav_date": str(h.nav_date) if h.nav_date else "",
+                    "asset_value": round(h.asset_value, 2) if h.asset_value else 0,
+                    "settlement_currency": h.settlement_currency or "",
+                    "dividend_method": h.dividend_method or ""
+                })
+            result = {
+                "query": {
+                    "column": display_name,
+                    "value": value
+                },
+                "items": items,
+                "summary": {
+                    "total_count": len(holdings),
+                    "total_value": round(total_value, 2)
+                }
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            # 表格格式输出
+            table = Table(
+                title=f"查询结果: {display_name} 包含 '{value}' (共{len(holdings)}条)",
+                show_header=True,
+                header_style="bold cyan",
+                expand=False,
             )
 
-        if len(holdings) > limit:
-            self.console.print(f"[dim]... 还有 {len(holdings) - limit} 条记录未显示[/]")
+            # 添加所有导入字段列（不限制宽度，完整显示）
+            table.add_column("基金代码", style="cyan")
+            table.add_column("基金名称", style="white")
+            table.add_column("份额类别", style="blue")
+            table.add_column("基金管理人", style="magenta")
+            table.add_column("基金账户", style="green")
+            table.add_column("交易账户", style="yellow")
+            table.add_column("销售机构", style="blue")
+            table.add_column("持有份额", justify="right", style="green")
+            table.add_column("份额日期", justify="center", style="white")
+            table.add_column("净值", justify="right", style="yellow")
+            table.add_column("净值日期", justify="center", style="white")
+            table.add_column("资产价值", justify="right", style="green")
+            table.add_column("结算币种", justify="center", style="blue")
+            table.add_column("分红方式", style="cyan")
 
-        self.console.print(table)
+            # 显示所有记录，不做截取
+            for holding in holdings:
+                table.add_row(
+                    holding.fund_code,
+                    holding.fund_name or "",
+                    holding.share_class or "",
+                    holding.fund_manager or "",
+                    holding.fund_account or "",
+                    holding.trade_account or "",
+                    holding.sales_agency or "",
+                    f"{holding.holding_shares:,.2f}",
+                    str(holding.share_date) if holding.share_date else "",
+                    f"{holding.nav:.4f}" if holding.nav else "",
+                    str(holding.nav_date) if holding.nav_date else "",
+                    f"¥{holding.asset_value:,.2f}",
+                    holding.settlement_currency or "",
+                    holding.dividend_method or "",
+                )
+
+            self.console.print(table)
+
+            # 显示汇总信息
+            self.console.print(f"\n[green]总计: {len(holdings)} 条记录, 资产价值: ¥{total_value:,.2f}[/]")
+
+    def _get_column_value(self, holding: FundHolding, column: GroupColumn) -> Any:
+        """获取持仓记录中指定列的值"""
+        if column == GroupColumn.FUND_CODE:
+            return holding.fund_code
+        elif column == GroupColumn.FUND_NAME:
+            return holding.fund_name
+        elif column == GroupColumn.FUND_MANAGER:
+            return holding.fund_manager
+        elif column == GroupColumn.FUND_ACCOUNT:
+            return holding.fund_account
+        elif column == GroupColumn.TRADE_ACCOUNT:
+            return holding.trade_account
+        elif column == GroupColumn.SALES_AGENCY:
+            return holding.sales_agency
+        elif column == GroupColumn.CURRENCY:
+            return holding.settlement_currency
+        elif column == GroupColumn.DIVIDEND_METHOD:
+            return holding.dividend_method
+        elif column == GroupColumn.INVEST_TYPE:
+            # 投资类型需要从 fund_info 获取
+            fund_info = self.database.get_fund_info(holding.fund_code)
+            return fund_info.fund_invest_type if fund_info else "未知"
+        return None
 
     def show_fund_detail(self, fund_code: str):
         """显示单个基金的详细信息"""
@@ -254,52 +309,3 @@ class Statistics:
                     )
 
                 self.console.print(bond_table)
-
-    def export_report(self, output_path: str = "report.txt"):
-        """导出统计报告"""
-        stats = self.database.get_statistics()
-
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write("=" * 60 + "\n")
-            f.write("基金持仓统计报告\n")
-            f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write("=" * 60 + "\n\n")
-
-            f.write(f"总资产价值: ¥{stats['total_asset_value']:,.2f}\n")
-            f.write(f"持仓基金数: {stats['fund_count']} 只\n")
-            f.write(f"持仓记录数: {stats['holding_count']} 条\n\n")
-
-            f.write("-" * 40 + "\n")
-            f.write("基金管理人分布:\n")
-            f.write("-" * 40 + "\n")
-            for manager, data in sorted(stats['manager_distribution'].items(),
-                                       key=lambda x: x[1]['total'], reverse=True):
-                f.write(f"  {manager}: {data['count']}只, ¥{data['total']:,.2f}\n")
-
-            f.write("\n" + "-" * 40 + "\n")
-            f.write("销售机构分布:\n")
-            f.write("-" * 40 + "\n")
-            for agency, data in sorted(stats['sales_agency_distribution'].items(),
-                                      key=lambda x: x[1]['total'], reverse=True):
-                f.write(f"  {agency}: {data['count']}只, ¥{data['total']:,.2f}\n")
-
-            f.write("\n" + "-" * 40 + "\n")
-            f.write("投资类型分布:\n")
-            f.write("-" * 40 + "\n")
-            invest_dist = stats.get('invest_type_distribution', {})
-            for invest_type, data in sorted(invest_dist.items(),
-                                           key=lambda x: x[1]['total'], reverse=True):
-                f.write(f"  {invest_type}: {data['count']}只, ¥{data['total']:,.2f}\n")
-
-        self.console.print(f"[green]报告已导出到: {output_path}[/]")
-
-    def show_all_stats(self):
-        """显示所有统计视图"""
-        self.console.print("\n" + "=" * 60 + "\n")
-        self.show_overview()
-        self.console.print("\n")
-        self.show_invest_type_distribution()
-        self.console.print("\n")
-        self.show_manager_distribution()
-        self.console.print("\n")
-        self.show_sales_agency_distribution()
