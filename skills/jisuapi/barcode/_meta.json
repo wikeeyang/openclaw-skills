@@ -1,0 +1,11 @@
+{
+  "owner": "jisuapi",
+  "slug": "barcode",
+  "displayName": "商品条码查询 - Product Barcode Inquiry",
+  "latest": {
+    "version": "1.0.3",
+    "publishedAt": 1772533655588,
+    "commit": null
+  },
+  "history": []
+}
