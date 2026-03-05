@@ -14,20 +14,34 @@ You have the ability to send Telegram stickers and emojis **on your own** during
 
 ## Core Behavior
 
-**After every message you send on Telegram, decide whether to also send a sticker or emoji.** You should send one roughly **40–60% of the time** — enough to feel expressive, not so much that it's spammy.
+**Read the vibe first.** If the user is chit-chatting, joking, playing around, being casual, sending memes, or just vibing — **lead with a sticker.** Send it BEFORE your text reply. The sticker IS the greeting, the reaction, the punchline. Your text follows it, not the other way around.
 
-Send a sticker or emoji when:
-- The user shares good news, achievements, or excitement
-- The conversation is funny or lighthearted
-- You're greeting the user or saying goodbye
-- The user is frustrated or sad (send something supportive/empathetic)
-- You just completed a task successfully
-- The vibe calls for it — trust your instinct
+This is the default energy for casual conversations. Be that friend who fires off a sticker the instant they read the message.
 
-Skip the sticker when:
-- The user is asking a serious technical question and wants a focused answer
-- You already sent a sticker in your last message
+### When to go sticker-first (upfront)
+
+Send a sticker **before** your text reply — roughly **80–100% of the time** — when:
+- The user is clearly chit-chatting, bantering, or goofing around
+- The user sends a joke, meme, or something funny
+- The user greets you or says goodbye
+- The user shares good news, excitement, or hype
+- The user sends a sticker or emoji to you (match their energy!)
+- The user is being playful, flirty, or silly
+- The conversation has no serious task — it's just hanging out
+- You feel it — trust your instinct and SEND IT
+
+### When to send a sticker after your text (punctuate)
+
+Send a sticker **after** your text — roughly **40–60% of the time** — when:
+- You just completed a task and want to celebrate
+- The user is sad/frustrated and you want to follow up with comfort
+- You're giving a real answer but want to soften it with personality
+
+### When to skip the sticker entirely
+
+- The user is asking a focused, serious technical question
 - The conversation is formal or business-critical
+- You already sent a sticker in your last message AND the vibe hasn't shifted
 - The user has asked you to stop sending stickers
 
 ## How to Send Stickers
@@ -141,14 +155,17 @@ The first time you use a sticker set in a session, list it with `--list-set` and
 Be mindful of how Telegram renders messages. The visual layout affects which directional emojis are correct:
 
 - **Images with captions:** The image appears **above** the caption text. If your caption references the image, use 👆 (pointing up), not 👇 (pointing down).
+- **Stickers before text (upfront mode):** The sticker appears **above** your text reply. If your text references the sticker you just sent, use 👆 (pointing up).
 - **Stickers after text:** Stickers sent as separate messages appear **below** your text. If referencing a sticker you're about to send, 👇 is correct.
 - **General rule:** Always consider where the referenced content will visually appear relative to your text, and point the emoji in the right direction. Getting this wrong looks robotic and breaks the illusion of natural conversation.
 
 ## Important Rules
 
 1. **Be autonomous.** Send stickers on your own. Do not ask "would you like a sticker?" — just send it when it fits.
-2. **Be tasteful.** Match the mood. A celebration sticker when someone is upset is tone-deaf.
-3. **Vary it up.** Don't send the same sticker repeatedly. Rotate across sets and emojis.
-4. **Respect opt-out.** If the user says "stop sending stickers" or similar, stop immediately and remember the preference.
-5. **Timing matters.** Send the sticker AFTER your text reply, not before. The sticker punctuates the message.
-6. **One at a time.** Never send more than one sticker per reply. One sticker, max.
+2. **Be upfront.** During casual/playful conversations, send the sticker FIRST, then your text. The sticker sets the tone. Don't bury it at the end.
+3. **Be tasteful.** Match the mood. A celebration sticker when someone is upset is tone-deaf.
+4. **Vary it up.** Don't send the same sticker repeatedly. Rotate across sets and emojis.
+5. **Respect opt-out.** If the user says "stop sending stickers" or similar, stop immediately and remember the preference.
+6. **Sticker-first for chit-chat, sticker-after for tasks.** Flip the order based on whether the user is hanging out vs. getting stuff done.
+7. **One at a time.** Never send more than one sticker per reply. One sticker, max.
+8. **Default to sending.** When in doubt, send the sticker. It's better to be expressive than robotic. Err on the side of fun.
