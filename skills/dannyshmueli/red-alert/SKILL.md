@@ -1,6 +1,6 @@
 ---
 name: red-alert
-version: 1.1.0
+version: 1.2.0
 description: Israel Red Alert API — real-time and historical rocket/missile alert data. Query alerts by city, time range, generate shelter time stats. Uses redalert.orielhaim.com (socket.io for real-time) and tzevaadom.co.il (REST for history).
 provides:
   - capability: israel-alerts
@@ -25,6 +25,11 @@ Real-time and historical alert data for Israeli cities. Track rocket alerts, cal
 Sign up at **<https://redalert.orielhaim.com/>** to get your API key. Store it as env var `RED_ALERT_API_KEY`.
 
 This skill is a wrapper around the RedAlert API — it provides convenient CLI tools for querying, analyzing, and visualizing alert data.
+
+## Endpoint Reference
+
+For a full, exact endpoint map used by this skill (REST + Socket.IO + auth behavior), read:
+- `references/ENDPOINTS.md`
 
 ## Data Sources
 
