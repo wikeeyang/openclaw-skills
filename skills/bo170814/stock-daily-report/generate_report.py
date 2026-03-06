@@ -21,12 +21,38 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 
-# 直接加载字体文件
-font_path = '/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc'
-font_prop = FontProperties(fname=font_path)
-font_prop_title = FontProperties(fname=font_path, size=16, weight='bold')
-font_prop_label = FontProperties(fname=font_path, size=12)
-font_prop_small = FontProperties(fname=font_path, size=9)
+# 智能加载字体文件 - 支持多个常见路径
+def find_chinese_font():
+    """查找系统中文字体，返回可用的字体路径"""
+    font_paths = [
+        '/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc',
+        '/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc',
+        '/usr/share/fonts/opentype/noto-cjk/NotoSansCJK-Regular.ttc',
+        '/usr/share/fonts/TTF/NotoSansCJK-Regular.ttc',
+        '/System/Library/Fonts/PingFang.ttc',  # macOS
+        'C:\\Windows\\Fonts\\msyh.ttc',  # Windows
+        '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',  # 文泉驿
+    ]
+    for path in font_paths:
+        if os.path.exists(path):
+            return path
+    # 如果都找不到，使用默认字体（可能无法显示中文）
+    print("⚠️ 警告：未找到中文字体，将使用默认字体（中文可能显示为方框）")
+    print("   建议安装：sudo apt install fonts-noto-cjk 或类似命令")
+    return None
+
+font_path = find_chinese_font()
+if font_path:
+    font_prop = FontProperties(fname=font_path)
+    font_prop_title = FontProperties(fname=font_path, size=16, weight='bold')
+    font_prop_label = FontProperties(fname=font_path, size=12)
+    font_prop_small = FontProperties(fname=font_path, size=9)
+else:
+    # 使用系统默认字体
+    font_prop = FontProperties()
+    font_prop_title = FontProperties(size=16, weight='bold')
+    font_prop_label = FontProperties(size=12)
+    font_prop_small = FontProperties(size=9)
 
 def load_config(config_path=None):
     """加载配置文件"""
@@ -59,31 +85,137 @@ def load_config(config_path=None):
     return default_config
 
 def fetch_stock_data(code):
-    """从新浪财经获取实时股票数据"""
+    """从多个数据源获取实时股票数据（支持自动切换）"""
+    # 数据源列表：新浪财经、东方财富、腾讯
+    data_sources = [
+        {'name': 'sina', 'url': get_sina_url(code), 'decode': 'gbk', 'parser': parse_sina},
+        {'name': 'eastmoney', 'url': get_eastmoney_url(code), 'decode': 'utf-8', 'parser': parse_eastmoney},
+        {'name': 'txstock', 'url': get_tx_url(code), 'decode': 'utf-8', 'parser': parse_tx}
+    ]
+    
+    for source in data_sources:
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': '*/*',
+                'Referer': 'https://quote.eastmoney.com/' if 'eastmoney' in source['name'] else 'https://finance.sina.com.cn/'
+            }
+            req = urllib.request.Request(source['url'], headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = response.read().decode(source['decode'])
+            
+            result = source['parser'](data, code)
+            if result and result.get('valid'):
+                return result
+        except Exception as e:
+            # 尝试下一个数据源
+            continue
+    
+    print(f"⚠️ 所有数据源都无法获取 {code} 数据")
+    return {'code': code, 'valid': False}
+
+def get_sina_url(code):
+    """新浪财经 URL"""
+    if code.startswith('513') or code.startswith('159'):
+        return f"https://hq.sinajs.cn/list={code}"
+    elif code.startswith('6') or code.startswith('5'):
+        return f"https://hq.sinajs.cn/list=sh{code}"
+    else:
+        return f"https://hq.sinajs.cn/list=sz{code}"
+
+def get_eastmoney_url(code):
+    """东方财富 URL - 对 ETF 支持更好"""
+    # 东方财富 secid 格式：市场代码。股票代码
+    # 市场代码：0=深市，1=沪市，100=港股，105=美股
+    if code.startswith('513'):
+        # 沪市 ETF（如 513180 恒生科技 ETF）
+        return f"https://push2.eastmoney.com/api/qt/stock/get?secid=1.{code}&fields=f43,f44,f45,f46,f47,f48,f49,f50,f51,f52,f53,f54,f55,f56,f57,f58,f59,f60"
+    elif code.startswith('159'):
+        # 深市 ETF
+        return f"https://push2.eastmoney.com/api/qt/stock/get?secid=0.{code}&fields=f43,f44,f45,f46,f47,f48,f49,f50,f51,f52,f53,f54,f55,f56,f57,f58,f59,f60"
+    elif code.startswith('6') or code.startswith('5'):
+        return f"https://push2.eastmoney.com/api/qt/stock/get?secid=1.{code}&fields=f43,f44,f45,f46,f47,f48,f49,f50,f51,f52,f53,f54,f55,f56,f57,f58,f59,f60"
+    else:
+        return f"https://push2.eastmoney.com/api/qt/stock/get?secid=0.{code}&fields=f43,f44,f45,f46,f47,f48,f49,f50,f51,f52,f53,f54,f55,f56,f57,f58,f59,f60"
+
+def get_tx_url(code):
+    """腾讯财经 URL"""
+    if code.startswith('6') or code.startswith('5'):
+        return f"http://qt.gtimg.cn/q=sh{code}"
+    else:
+        return f"http://qt.gtimg.cn/q=sz{code}"
+
+def parse_sina(data, code):
+    """解析新浪财经数据"""
+    match = re.search(r'var hq_str_.*="([^"]+)"', data)
+    if match:
+        parts = match.group(1).split(',')
+        if len(parts) >= 32:
+            return parse_stock_parts(parts, code)
+    return None
+
+def parse_eastmoney(data, code):
+    """解析东方财富数据"""
     try:
-        if code.startswith('513') or code.startswith('159'):
-            url = f"https://hq.sinajs.cn/list={code}"
-        elif code.startswith('6') or code.startswith('5'):
-            url = f"https://hq.sinajs.cn/list=sh{code}"
-        else:
-            url = f"https://hq.sinajs.cn/list=sz{code}"
+        import json
+        # 检查是否为空响应
+        if not data or len(data) < 10:
+            return None
         
-        headers = {'User-Agent': 'Mozilla/5.0', 'Accept': '*/*', 'Referer': 'https://finance.sina.com.cn/'}
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = response.read().decode('gbk')
-        
-        match = re.search(r'var hq_str_.*="([^"]+)"', data)
+        result = json.loads(data)
+        if result.get('data'):
+            d = result['data']
+            name = d.get('f58', '') or code
+            # 东方财富价格单位是分，需要除以 100
+            # 判断逻辑：如果价格值看起来像分（>100），则转换为元
+            current = d.get('f43', 0)
+            if current > 100:  # 如果值大于 100，说明单位是分
+                current = current / 100
+            prev_close = d.get('f60', 0)
+            if prev_close > 100:
+                prev_close = prev_close / 100
+            open_price = d.get('f46', 0)
+            if open_price > 100:
+                open_price = open_price / 100
+            high = d.get('f44', 0)
+            if high > 100:
+                high = high / 100
+            low = d.get('f45', 0)
+            if low > 100:
+                low = low / 100
+            volume = d.get('f47', 0)
+            
+            change = current - prev_close
+            change_pct = (change / prev_close) * 100 if prev_close else 0
+            amplitude = ((high - low) / prev_close) * 100 if prev_close else 0
+            turnover_rate = (volume / 100000) * 100 if volume else 0
+            volume_ratio = volume / 50000 if volume else 1
+            
+            return {
+                'code': code, 'name': name, 'current': current, 'change': change,
+                'change_pct': change_pct, 'open': open_price, 'high': high, 'low': low,
+                'prev_close': prev_close, 'volume': volume,
+                'amplitude': amplitude, 'turnover_rate': turnover_rate,
+                'volume_ratio': volume_ratio, 'valid': True
+            }
+    except Exception as e:
+        pass
+    return None
+
+def parse_tx(data, code):
+    """解析腾讯财经数据"""
+    try:
+        match = re.search(r'v_(\w+)="([^"]+)"', data)
         if match:
-            parts = match.group(1).split(',')
-            if len(parts) >= 32:
-                name = parts[0]
+            parts = match.group(2).split('~')
+            if len(parts) >= 50:
+                name = parts[1]
                 current = float(parts[3]) if parts[3] else 0
-                prev_close = float(parts[2]) if parts[2] else 0
-                open_price = float(parts[1]) if parts[1] else 0
-                high = float(parts[4]) if parts[4] else 0
-                low = float(parts[5]) if parts[5] else 0
-                volume = int(parts[8]) if parts[8] else 0
+                prev_close = float(parts[4]) if parts[4] else 0
+                open_price = float(parts[5]) if parts[5] else 0
+                high = float(parts[33]) if parts[33] else 0
+                low = float(parts[34]) if parts[34] else 0
+                volume = int(parts[6]) if parts[6] else 0
                 
                 change = current - prev_close
                 change_pct = (change / prev_close) * 100 if prev_close else 0
@@ -98,10 +230,36 @@ def fetch_stock_data(code):
                     'amplitude': amplitude, 'turnover_rate': turnover_rate,
                     'volume_ratio': volume_ratio, 'valid': True
                 }
-    except Exception as e:
-        print(f"获取 {code} 数据失败：{e}")
-    
-    return {'code': code, 'valid': False}
+    except:
+        pass
+    return None
+
+def parse_stock_parts(parts, code):
+    """解析股票数据片段"""
+    try:
+        name = parts[0]
+        current = float(parts[3]) if parts[3] else 0
+        prev_close = float(parts[2]) if parts[2] else 0
+        open_price = float(parts[1]) if parts[1] else 0
+        high = float(parts[4]) if parts[4] else 0
+        low = float(parts[5]) if parts[5] else 0
+        volume = int(parts[8]) if parts[8] else 0
+        
+        change = current - prev_close
+        change_pct = (change / prev_close) * 100 if prev_close else 0
+        amplitude = ((high - low) / prev_close) * 100 if prev_close else 0
+        turnover_rate = (volume / 100000) * 100 if volume else 0
+        volume_ratio = volume / 50000 if volume else 1
+        
+        return {
+            'code': code, 'name': name, 'current': current, 'change': change,
+            'change_pct': change_pct, 'open': open_price, 'high': high, 'low': low,
+            'prev_close': prev_close, 'volume': volume,
+            'amplitude': amplitude, 'turnover_rate': turnover_rate,
+            'volume_ratio': volume_ratio, 'valid': True
+        }
+    except:
+        return None
 
 def fetch_kline_data(code, days=30):
     """获取历史 K 线数据"""

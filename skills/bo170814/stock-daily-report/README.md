@@ -9,7 +9,19 @@
 ```bash
 # 使用 clawhub 安装
 clawhub install stock-daily-report
+
+# 进入技能目录
+cd ~/.openclaw/workspace/skills/stock-daily-report-publish
+
+# 运行自动安装脚本（推荐）
+bash install.sh
 ```
+
+安装脚本会自动：
+- ✅ 检查 Python3 和 pip3
+- ✅ 安装 matplotlib 和 pyppeteer
+- ✅ 安装中文字体（Noto CJK）
+- ✅ 预下载 Chromium（用于图片生成）
 
 ### 2. 配置
 
@@ -20,7 +32,7 @@ clawhub install stock-daily-report
     {"code": "600519", "name": "贵州茅台"}
   ],
   "output_dir": "/tmp",
-  "output_format": "both"
+  "output_format": "both"  // html, image, 或 both
 }
 ```
 
@@ -32,7 +44,14 @@ python3 generate_report.py --format both
 
 # 指定股票
 python3 generate_report.py --stocks 002973,600095 --format both
+
+# 使用配置文件
+python3 generate_report.py --config config.json
 ```
+
+### 4. 查看报告
+
+报告生成在 `/tmp/stock-report-YYYYMMDD.html` 和 `/tmp/stock-report-YYYYMMDD.png`
 
 ## 功能特性
 
@@ -53,9 +72,18 @@ python3 generate_report.py --stocks 002973,600095 --format both
 
 ## 依赖
 
+### Python 库
 - Python 3.6+
-- matplotlib
-- pyppeteer（可选，用于图片生成）
+- matplotlib（K 线图生成）
+- pyppeteer（HTML 转图片）
+
+### 系统字体
+需要中文字体支持（Noto Sans CJK 或类似）
+
+**一键安装所有依赖：**
+```bash
+bash install.sh
+```
 
 ## 许可证
 
