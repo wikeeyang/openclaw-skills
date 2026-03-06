@@ -1,12 +1,12 @@
 {
   "name": "token-analyzer",
-  "version": "1.0.0",
-  "description": "提供全面的代币分析功能。通过合约地址查询代币在不同链（SOL, BSC, Base）上的实时市场数据、AI评分、风险评估和Alpha分析。",
-  "main": "scripts/token_query.py",
+  "version": "2.2.2",
+  "description": "基于官方 GMGN API 的代币分析工具，提供准确的市场数据、安全检测和 AI 评分",
+  "main": "scripts/token_query_v2.py",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "query": "python3 scripts/token_query_v2.py"
   },
-  "keywords": ["token", "analyzer", "crypto", "solana", "bsc", "base", "meme"],
+  "keywords": ["token", "analyzer", "crypto", "solana", "bsc", "base", "gmgn", "api"],
   "author": "hanguang254",
-  "license": "ISC"
+  "license": "MIT"
 }
