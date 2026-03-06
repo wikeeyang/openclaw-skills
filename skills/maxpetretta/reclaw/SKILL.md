@@ -1,186 +1,142 @@
 ---
 name: reclaw
-description: "Use reclaw to extract and summarize ChatGPT, Claude, and Grok history exports into OpenClaw memory or a Zettelclaw vault."
+description: "Use when accessing memory, recording information, searching prior context, or managing subjects."
 read_when:
-  - You need to bootstrap memory from existing AI chat history
-  - You are importing ChatGPT, Claude, or Grok conversation exports
-  - You want to generate durable memory files for OpenClaw
-  - You want to generate journal-based imports for a Zettelclaw vault
+  - You need to find something from a previous session
+  - You want to record a decision, fact, task, or question
+  - You're asked about what you remember or know
+  - You need to check or update the subject registry
 ---
 
-# Reclaw
+# Reclaw Memory System
 
-Reclaw imports AI chat exports (ChatGPT, Claude, Grok) and builds durable memory artifacts for:
-- OpenClaw native memory, or
-- Zettelclaw vault workflows.
+Reclaw is an append-only event log that replaces daily memory files. All memory lives in `log.jsonl` as structured entries. Extraction happens automatically at session end — you don't write to the log directly. Your job is to state information clearly in conversation so the extraction hook captures it.
 
-## 1) Export Data
+## How Memory Works
 
-### ChatGPT export
-1. Open ChatGPT Settings.
-2. Go to **Data Controls**.
-3. Click **Export Data**.
-4. Download and unzip the archive.
-5. Locate `conversations.json`.
+1. **MEMORY.md** is auto-loaded into every session. It has a manual section (goals, preferences) and a generated Reclaw memory snapshot updated nightly.
+2. **Reclaw session handoff** is written into MEMORY.md after each session extraction.
+3. **`memory_search`** finds entries by keyword, type, subject, or status.
+4. **`memory_get`** retrieves a specific entry by ID, reads MEMORY.md, or fetches a full session transcript.
 
-### Claude export
-1. Open Claude Settings.
-2. Go to **Account**.
-3. Click **Export Data**.
-4. Download and unzip the archive.
-5. Locate `conversations.json` (keep `memories.json` alongside when present).
+Start with what's already in context (steps 1-2). Only call tools when you need something specific.
 
-### Grok export
-1. Open Grok Settings.
-2. Go to **Account**.
-3. Click **Download Your Data**.
-4. Download and unzip the archive.
-5. Locate conversation export files.
+## Entry Types
 
-## 2) Run Reclaw
+| Type | What it captures | Key detail |
+|---|---|---|
+| `task` | Action items, follow-ups | Has `status`: `open` or `done` |
+| `fact` | User-specific information learned | Preferences, events, observations, milestones |
+| `decision` | A choice with reasoning | Use `detail` for the "why" |
+| `question` | An unresolved open loop | Resolved by later entries on the same subject |
+| `handoff` | Session boundary state | One per session, summarizes what's in-flight |
 
-### Interactive mode
+## Subjects
+
+Every non-handoff entry has a `subject` — a kebab-case slug like `auth-migration` or `reclaw`. Subjects are tracked in a registry with a type: `project`, `person`, `system`, or `topic` (default).
+
+When discussing something new, use a clear kebab-case slug. The extraction hook auto-creates subjects it hasn't seen. To explicitly manage subjects:
 
 ```bash
-npx reclaw
+# List all subjects
+openclaw reclaw subjects list
+
+# Add a subject with a type
+openclaw reclaw subjects add auth-migration --type project
+openclaw reclaw subjects add alice-chen --type person
+
+# Rename a subject (updates registry and all log entries)
+openclaw reclaw subjects rename old-slug new-slug
 ```
 
-Canonical flags:
+## Using `memory_search`
+
+Combines structured log filters with keyword search and MEMORY.md semantic search.
+
+```
+# Keyword search
+memory_search({"query": "webhook retries"})
+
+# Structured filters
+memory_search({"type": "decision", "subject": "auth-migration"})
+memory_search({"type": "task", "status": "open"})
+memory_search({"type": "question"})
+
+# Combined
+memory_search({"query": "backoff", "type": "fact", "subject": "auth-migration"})
+```
+
+At least one of `query`, `type`, `subject`, or `status` is required.
+
+## Using `memory_get`
+
+Three lookup modes based on the `path` value:
+
+```
+# By entry ID (12-char nanoid from search results)
+memory_get({"path": "r7Wp3nKx_mZe"})
+
+# By session transcript (from an entry's session field)
+memory_get({"path": "session:abc123def456"})
+
+# By file path
+memory_get({"path": "MEMORY.md"})
+```
+
+Reading an entry by ID increments its usage score, which helps it persist in the nightly memory snapshot.
+
+## Citations
+
+When referencing a prior event in conversation, cite it as `[<12-char-id>]` (e.g., `[r7Wp3nKx_mZe]`). This format is tracked for usage scoring — cited entries are more likely to appear in future memory snapshots.
+
+## Corrections and Updates
+
+The log is append-only. To correct something:
+- State the correction clearly in conversation. Extraction writes a new entry on the same subject.
+- To mark a task done, say so explicitly. Extraction emits a new `task` entry with `status: "done"`.
+- To answer a question, discuss the resolution. Extraction captures the answer as a `fact` or `decision`.
+
+Old entries are never modified. Current state is reconstructed by reading a subject's entries chronologically.
+
+## Hard Filter
+
+Only user-specific information belongs in the log. Ask: "Would I need to know this person to know this?" If a general-purpose LLM could produce the content without user context, it should not be extracted. No generic knowledge, no dependency lists, no boilerplate.
+
+## CLI Commands
 
 ```bash
-npx reclaw --help
+# Recent log entries
+openclaw reclaw log
+openclaw reclaw log --type decision --subject auth-migration --limit 10
+
+# Search with filters
+openclaw reclaw search "webhook"
+openclaw reclaw search --type task --status open
+openclaw reclaw search --subject auth-migration --from 2026-02-01 --to 2026-03-01
+
+# Trace a subject's chronological history
+openclaw reclaw trace
+openclaw reclaw trace --subject auth-migration
+openclaw reclaw trace <entry-id>
+
+# Subject management
+openclaw reclaw subjects list
+openclaw reclaw subjects add <slug> --type <project|person|system|topic>
+openclaw reclaw subjects rename <old-slug> <new-slug>
+
+# Regenerate the MEMORY.md memory snapshot now
+openclaw reclaw snapshot generate
+
+# Force-refresh MEMORY.md session handoff block from log
+openclaw reclaw handoff refresh
+
+# Import historical conversations
+openclaw reclaw import <chatgpt|claude|grok|openclaw> <file>
+openclaw reclaw import status
+openclaw reclaw import resume <jobId>
+
+# Setup
+openclaw reclaw init
+openclaw reclaw verify
+openclaw reclaw uninstall
 ```
-
-### Direct mode examples
-
-```bash
-npx reclaw --provider chatgpt --input ./conversations.json
-npx reclaw --provider claude --input ./path/to/claude-export/
-npx reclaw --provider grok --input ./path/to/grok-export/
-```
-
-`--input` accepts:
-- provider export directory, or
-- direct export file path.
-
-### Plan without writing
-
-```bash
-npx reclaw --dry-run --provider chatgpt --input ./conversations.json
-npx reclaw --plan --provider claude --input ./path/to/claude-export/
-```
-
-## 3) Output Modes
-
-### `--mode openclaw` (default)
-- Writes daily files to `memory/YYYY-MM-DD.md`.
-- Daily file format:
-  - `## Decisions`
-  - `## Facts`
-  - `## Interests`
-  - `## Open`
-  - `---`
-  - `## Sessions` (bullets as `provider:conversationId — timestamp`)
-- Imports legacy conversations into OpenClaw session history by default (`--legacy-sessions on`).
-- Updates `MEMORY.md` and `USER.md` via a main synthesis agent run.
-
-### `--mode zettelclaw`
-- Writes daily journals to `03 Journal/YYYY-MM-DD.md`.
-- Journal format is day-level recap with:
-  - `## Decisions`
-  - `## Facts`
-  - `## Interests`
-  - `## Open`
-  - `---`
-  - `## Sessions` (bullets as `provider:conversationId — HH:MM`)
-- Does not write inbox notes.
-- Imports legacy conversations into OpenClaw session history by default (`--legacy-sessions on`) using `--workspace` or `~/.openclaw/workspace`.
-- Updates `MEMORY.md` and `USER.md` via a main synthesis agent run.
-
-## 4) Subagent Model
-
-- Default is **one merged subagent task per day** (all same-day conversations grouped together).
-- `--subagent-batch-size` is deprecated and ignored.
-- Subagent jobs run in parallel by default (`--parallel-jobs 5`).
-- Individual batch failures do not stop the run; successful batches continue and failed batches are reported at the end.
-- Subagents return strict JSON with one field:
-  - `summary`
-- The main process synthesizes structured memory signals from those summaries.
-
-## 5) `MEMORY.md` / `USER.md` Safety
-
-Before updates, Reclaw writes backups:
-- `MEMORY.md.bak`
-- `USER.md.bak`
-
-Then a dedicated main synthesis agent updates `MEMORY.md` and `USER.md` using its own tools.
-
-For repeated test runs, use:
-- `--timestamped-backups` to write `.bak.<timestamp>` files instead of overwriting `.bak`.
-- `--state-path <path>` to isolate resumability state per run.
-
-## 6) Model Choice
-
-Preferred profile:
-- fast,
-- low cost,
-- reliable long-context behavior.
-
-Recommended models: **Claude Haiku** or **Gemini Flash**.
-
-Set with:
-- `--model <model-id>`, or
-- interactive model selection.
-
-## 7) Resumability
-
-Runs are resumable via:
-- `.reclaw-state.json`
-
-If interrupted:
-1. Re-run the same command.
-2. Reclaw resumes completed progress.
-
-## 8) Agent Workflow Guidance
-
-When helping a user:
-1. Confirm provider export and extracted path.
-2. Recommend `--mode openclaw` unless user explicitly wants Zettelclaw vault output.
-3. Explain day-grouped extraction and parallel job controls.
-4. Recommend a fast model.
-5. Mention resume behavior and `.bak` safety copies for `MEMORY.md`/`USER.md`.
-6. For test loops, recommend `--state-path` + `--timestamped-backups`.
-
-## 9) Quick Command Reference
-
-```bash
-# Interactive
-npx reclaw
-
-# Day-grouped extraction default
-npx reclaw --provider chatgpt --input ./conversations.json
-
-# Increase parallel subagent jobs
-npx reclaw --provider chatgpt --input ./conversations.json --parallel-jobs 8
-
-# Test-safe repeated runs (isolated state + timestamped backups)
-npx reclaw --provider chatgpt --input ./conversations.json --state-path ./tmp/reclaw-run-1.json --timestamped-backups
-
-# Explicit mode/model
-npx reclaw --mode openclaw --model anthropic/claude-3.5-haiku
-npx reclaw --mode zettelclaw --model openrouter/google/gemini-3-flash-preview
-```
-
-## 10) What Reclaw Produces
-
-OpenClaw mode:
-- `memory/YYYY-MM-DD.md`
-- updated `MEMORY.md` (+ `MEMORY.md.bak`)
-- updated `USER.md` (+ `USER.md.bak`)
-
-Zettelclaw mode:
-- `03 Journal/YYYY-MM-DD.md`
-- updated `MEMORY.md` (+ `MEMORY.md.bak`)
-- updated `USER.md` (+ `USER.md.bak`)
-
-Core goal: convert transient chat history into durable, reusable memory.
