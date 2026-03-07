@@ -7,6 +7,33 @@ description: A Research Assistant workflow skill with four core commands: search
 
 This skill is a Research Assistant that helps users search, download, analyze, and save research papers.
 
+## Recommended Directory Structure
+
+For better organization, it is recommended to create a dedicated workspace for `hxxra` under your OpenClaw working directory:
+
+```
+📁 workspace/                              # OpenClaw current working directory
+└── 📁 hxxra/
+    ├── 📁 searches/                       # Stores all search result JSON files
+        ├── 2025-03-07_neural_radiance_fields_arxiv.json
+        ├── 2025-03-07_transformer_architectures_scholar.json
+        └── ...
+    ├── 📁 papers/                           # Stores downloaded PDF files and per-paper analysis results (each as a subfolder)
+        ├── 2023_Smith_NeRF_Explained/      # Folder named after the PDF (without extension)
+          ├── 2023_Smith_NeRF_Explained.pdf
+          ├── analysis.json                 # Structured output from LLM analysis
+          └── notes.md                      # (Optional) User-added notes
+        ├── 2024_Zhang_Transformer_Survey/
+          ├── 2024_Zhang_Transformer_Survey.pdf
+          ├── analysis.json
+          └── ...
+        └── ...
+    └── 📁 logs/ # Stores execution logs
+        └── hxxra_2025-03-07.log
+```
+
+This structure keeps all related files organized and easily accessible for review and further processing.
+
 ## Core Commands
 
 ### 1. **hxxra search** - Search for research papers
@@ -15,12 +42,14 @@ This skill is a Research Assistant that helps users search, download, analyze, a
 
 **Purpose**: Search for papers using Google Scholar and arXiv APIs
 
+**Academic Note**: To account for the distinct characteristics of each data source, the tool adopts a differentiated sorting strategy—**arXiv results are ordered by submission date in descending order**, prioritizing the timeliness of recent research; **Google Scholar results retain the source's default relevance ranking**, ensuring strong alignment with the query keywords while appropriately weighing influential or classical literature.
+
 **Parameters**:
 
 - `-q, --query <string>` (Required): Search keywords
 - `-s, --source <string>` (Optional): Data source: `arxiv` (default), `scholar`
 - `-l, --limit <number>` (Optional): Number of results (default: 10)
-- `-o, --output <path>` (Optional): JSON output file (default: `search_results.json`)
+- `-o, --output <path>` (Optional): JSON output file (default: `{workspace}/hxxra/searches/search_results.json`)
 
 **Input Examples**:
 
@@ -65,12 +94,12 @@ This skill is a Research Assistant that helps users search, download, analyze, a
 
 - `-f, --from-file <path>` (Required): JSON file with search results
 - `-i, --ids <list>` (Optional): Paper IDs (comma-separated or range)
-- `-d, --dir <path>` (Optional): Download directory (default: `./papers`)
+- `-d, --dir <path>` (Optional): Download directory (default: `{workspace}/hxxra/papers/`)
 
 **Input Examples**:
 
 ```json
-{"command": "download", "from-file": "results.json", "ids": [1, 3, 5], "dir": "./downloads"} | python scripts/hxxra.py
+{"command": "download", "from-file": "results.json", "ids": ["1", "3", "5"], "dir": "./downloads"} | python scripts/hxxra.py
 {"command": "download", "from-file": "results.json", "dir": "./downloads"} | python scripts/hxxra.py
 ```
 
@@ -85,7 +114,7 @@ This skill is a Research Assistant that helps users search, download, analyze, a
       "id": "1",
       "title": "Paper Title",
       "status": "success",
-      "pdf_path": "/path/to/downloads/Smith_2023_Title.pdf",
+      "pdf_path": "{workspace}/hxxra/papers/2023_Smith_NeRF_Explained/2023_Smith_NeRF_Explained.pdf",
       "size_bytes": 1234567,
       "url": "https://arxiv.org/pdf/xxxx.xxxxx.pdf"
     }
@@ -93,7 +122,7 @@ This skill is a Research Assistant that helps users search, download, analyze, a
   "failed": [],
   "total": 3,
   "successful": 3,
-  "download_dir": "/path/to/downloads"
+  "download_dir": "{workspace}/hxxra/papers"
 }
 ```
 
@@ -104,19 +133,20 @@ This skill is a Research Assistant that helps users search, download, analyze, a
 **Dependencies**: `pip install pymupdf pdfplumber openai`
 
 **Purpose**: Analyze paper content using LLM
+
 **Parameters**:
 
 - `-p, --pdf <path>` (Optional*): Single PDF file to analyze
 - `-d, --directory <path>` (Optional*): Directory with multiple PDFs
-- `-o, --output <path>` (Optional): Output directory (default: `./analysis`)
+- `-o, --output <path>` (Optional): Output directory. If not specified, analysis results will be saved in the same subfolder as the PDF (default: `{workspace}/hxxra/papers/{paper_title}/analysis.json`)
 
 ** Note: Either `--pdf` or `--directory` must be provided, but not both*
 
 **Input Examples**:
 
 ```json
-{"command": "analyze", "pdf": "paper.pdf", "output": "analysis.json"} | python scripts/hxxra.py
-{"command": "analyze", "directory": "./papers/"} | python scripts/hxxra.py
+{"command": "analyze", "pdf": "paper.pdf", "output": "./analysis/"} | python scripts/hxxra.py
+{"command": "analyze", "directory": "hxxra/papers/"} | python scripts/hxxra.py
 ```
 
 **Output Structure**:
@@ -129,7 +159,7 @@ This skill is a Research Assistant that helps users search, download, analyze, a
     {
       "id": "paper_1",
       "original_file": "paper.pdf",
-      "analysis_file": "/path/to/analysis/paper_analysis.json",
+      "analysis_file": "{workspace}/hxxra/papers/2023_Smith_NeRF_Explained/analysis.json",
       "metadata": {
         "title": "Paper Title",
         "authors": ["Author1", "Author2"],
@@ -161,15 +191,15 @@ This skill is a Research Assistant that helps users search, download, analyze, a
 
 **Parameters**:
 
-- `-f, --from-file <path>` (Required): JSON file with paper data
+- `-f, --from-file <path>` (Required): JSON file with search results (e.g., `hxxra/searches/search_results.json`)
 - `-i, --ids <list>` (Optional): Paper IDs to save
 - `-c, --collection <string>` (Required): Zotero collection name
 
 **Input Examples**:
 
 ```json
-{"command": "save", "from-file": "analysis.json", "ids": [1, 2, 3], "collection": "AI Research"} | python scripts/hxxra.py
-{"command": "save", "from-file": "analysis.json", "collection": "My Collection"} | python scripts/hxxra.py
+{"command": "save", "from-file": "hxxra/searches/search_results.json", "ids": ["1", "2", "3"], "collection": "AI Research"} | python scripts/hxxra.py
+{"command": "save", "from-file": "hxxra/searches/search_results.json", "collection": "My Collection"} | python scripts/hxxra.py
 ```
 
 **Output Structure**:
@@ -203,16 +233,16 @@ This skill is a Research Assistant that helps users search, download, analyze, a
 
 ```bash
 # 1. Search for papers
-{"command": "search", "query": "graph neural networks", "source": "arxiv", "limit": 10} | python scripts/hxxra.py
+{"command": "search", "query": "graph neural networks", "source": "arxiv", "limit": 10, "output": "hxxra/searches/gnn_arxiv.json"} | python scripts/hxxra.py
 
 # 2. Download first 5 papers
-{"command": "download", "from-file": "search_results.json"} | python scripts/hxxra.py
+{"command": "download", "from-file": "hxxra/searches/gnn_arxiv.json", "dir": "hxxra/papers"} | python scripts/hxxra.py
 
 # 3. Analyze downloaded papers
-{"command": "analyze", "directory": "./papers/"} | python scripts/hxxra.py
+{"command": "analyze", "directory": "hxxra/papers/"} | python scripts/hxxra.py
 
 # 4. Save to Zotero
-{"command": "save", "from-file": "./analysis/", "collection": "GNN Papers"} | python scripts/hxxra.py
+{"command": "save", "from-file": "hxxra/searches/gnn_arxiv.json", "collection": "GNN Papers"} | python scripts/hxxra.py
 ```
 
 ### Single Command Examples
@@ -222,13 +252,13 @@ This skill is a Research Assistant that helps users search, download, analyze, a
 {"command": "search", "query": "reinforcement learning", "source": "scholar", "limit": 15} | python scripts/hxxra.py
 
 # Download specific papers
-{"command": "download", "from-file": "search_results.json", "ids": [2, 4, 6]} | python scripts/hxxra.py
+{"command": "download", "from-file": "hxxra/searches/search_results.json", "ids": ["2", "4", "6"], "dir": "hxxra/papers"} | python scripts/hxxra.py
 
 # Analyze single PDF in detail
-{"command": "analyze", "pdf": "important_paper.pdf"} | python scripts/hxxra.py
+{"command": "analyze", "pdf": "hxxra/papers/2024_Zhang_Transformer_Survey/2024_Zhang_Transformer_Survey.pdf"} | python scripts/hxxra.py
 
 # Save with custom notes
-{"command": "save", "from-file": "search_results.json", "ids": [1], "collection": "To Read"} | python scripts/hxxra.py
+{"command": "save", "from-file": "hxxra/searches/search_results.json", "ids": ["1"], "collection": "To Read"} | python scripts/hxxra.py
 ```
 
 ## Configuration Requirements
@@ -275,10 +305,43 @@ Each command returns standard error format:
 
 ## Development Status
 
-version: v1
-- ✅ Command structure defined
-- ✅ Parameter validation implemented
-- ✅ arXiv integration in progress
-- ✅ Google Scholar integration using scholarly library
-- ✅ Zotero API integration
-- ✅ LLM analysis pipeline using pymupdf pdfplumber and OpenAI API
+### Current Version: v1.1.1 (2026/3/7)
+
+### Version History
+
+**v1.1.1 · 2026/3/7**
+
+- Added `sanitize_filename()` function to unify filename and folder name handling for downloaded papers.
+- Modified `handle_download` function to use the new sanitization function for author names and titles.
+- Improved filename safety: now only allows letters, numbers, and underscores; multiple consecutive underscores are merged; length limited to 50 characters.
+
+**v1.1.0 · 2026/3/7**
+
+- Added a recommended directory structure for optimal organization of search results, papers, analysis, and logs.
+- Updated all examples and default output locations to align with the new `{workspace}/hxxra/` folder layout.
+- Clarified file storage practices: each downloaded paper now has its own subfolder containing the PDF and analysis files.
+- Improved documentation for command parameters and outputs to reflect the directory structure changes.
+- Enhanced clarity of workflow steps, making it easier to manage, locate, and share research outputs.
+- Fixed ids data handling: improved ID matching logic to support both string and numeric ID comparisons in download and save commands.
+- Fixed analyze output parameter: output directory is now only created when explicitly specified, otherwise analysis results are saved in the same subfolder as the PDF.
+- Fixed Zotero API "400 Bad Request" error: changed data format from object to array (`[item_data]`) to comply with Zotero API requirements
+
+**v1.0.2 · 2026/3/6**
+
+- Modified hxxra.py script to add fix_proxy_env() function call, resolving the issue where ALL_PROXY and all_proxy are reset to socks://127.0.0.1:7897/ in new OpenClaw sessions, causing search failures
+
+**v1.0.1 · 2026/3/6**
+
+- Added academic note clarifying that arXiv search results are sorted by most recent submission date, while Google Scholar results use the source's default relevance ranking
+- No changes to command structure, parameters, or output formats
+
+**v1.0.0 · 2026/2/9**
+
+Initial release of hxxra – a research assistant tool for searching, downloading, analyzing, and saving research papers.
+
+- Introduces four core JSON-based commands: search, download, analyze, save
+- Supports searching papers via Google Scholar and arXiv, with flexible parameters and output structure
+- Enables PDF downloads using search results, with fine-grained ID selection and status reporting
+- Integrates LLM-driven PDF content analysis, providing structured output for one or many papers
+- Allows saving papers to Zotero collections, requiring user API credentials
+- Features robust parameter validation, error handling, and documentation with usage examples
