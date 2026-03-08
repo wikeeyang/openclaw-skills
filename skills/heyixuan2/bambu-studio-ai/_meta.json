@@ -3,11 +3,16 @@
   "slug": "bambu-studio-ai",
   "displayName": "Bambu Studio Ai",
   "latest": {
-    "version": "0.22.27",
-    "publishedAt": 1772981555508,
-    "commit": "https://github.com/openclaw/skills/commit/0e85139c625736165149e6b4a3a564b76d8159a9"
+    "version": "0.22.28",
+    "publishedAt": 1772981849024,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.22.27",
+      "publishedAt": 1772981555508,
+      "commit": "https://github.com/openclaw/skills/commit/0e85139c625736165149e6b4a3a564b76d8159a9"
+    },
     {
       "version": "0.22.21",
       "publishedAt": 1772706473850,
