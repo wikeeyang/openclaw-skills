@@ -28,7 +28,7 @@ clawhub install agentshield-audit
 
 ```bash
 cd ~/.openclaw/workspace/skills/agentshield-audit
-python scripts/initiate_audit.py --auto
+python initiate_audit.py --auto
 ```
 
 That's it! Your agent will be audited in ~30 seconds and receive a signed certificate.
@@ -37,7 +37,8 @@ That's it! Your agent will be audited in ~30 seconds and receive a signed certif
 
 ## ✨ Features
 
-- ✅ **Zero-config auto-detection** - Automatically detects agent name and platform
+- ✅ **Zero external fetching** - All scripts bundled locally
+- ✅ **Human-in-the-loop** - Explicit approval required before reading files
 - ✅ **Cryptographic identity** - Ed25519 keypair generation with local private key storage
 - ✅ **Security audit** - Tests against 5+ common attack vectors
 - ✅ **Verifiable certificates** - 90-day validity, signed by AgentShield CA
@@ -67,36 +68,66 @@ Your agent is tested against these attack vectors:
 
 ```
 agentshield-audit/
-├── clawhub.json              # ClawHub manifest
-├── SKILL.md                  # Skill documentation
-├── README.md                 # This file
-├── QUICKSTART.md             # Step-by-step tutorial
-├── sandbox_config.yaml       # Tool sandbox configuration
+├── SKILL.md                 # Complete skill documentation
+├── README.md                # This file
+├── clawhub.json            # ClawHub manifest
+├── requirements.txt        # Python dependencies
+├── sandbox_config.yaml     # Tool sandbox configuration
+├── CHANGELOG.md            # Version history
+├── INSTALLATION.md         # Detailed installation guide
+├── QUICKSTART.md           # Step-by-step tutorial
 │
-├── scripts/
-│   ├── requirements.txt      # Python dependencies
-│   ├── initiate_audit.py     # Start a new audit
-│   ├── verify_peer.py        # Verify another agent
-│   ├── show_certificate.py   # Display your certificate
-│   └── audit_client.py       # Low-level API client
+├── Core Audit Scripts:
+│   ├── initiate_audit.py   # Main script - start new audit with consent
+│   ├── verify_peer.py      # Verify another agent's certificate
+│   ├── show_certificate.py # Display your certificate
+│   └── audit_client.py     # Low-level API client
 │
-├── src/
-│   └── agentshield_security/ # Security testing modules
-│       ├── __init__.py
-│       ├── input_sanitizer.py
-│       ├── output_dlp.py
-│       ├── tool_sandbox.py
-│       ├── echoleak_test.py
-│       ├── secret_scanner.py
-│       └── supply_chain_scanner.py
+├── Security Modules:
+│   ├── input_sanitizer.py  # Input validation
+│   ├── output_dlp.py       # Output data loss prevention  
+│   ├── tool_sandbox.py     # Tool execution sandbox
+│   ├── echoleak_test.py    # Echo leakage detection
+│   ├── secret_scanner.py   # Secret scanning
+│   └── supply_chain_scanner.py  # Supply chain security
 │
-├── references/
-│   └── api.md                # API documentation
-│
-└── tests/
-    ├── test_security_modules.py
-    ├── test_input_sanitizer.py
-    └── test_quick.py
+└── Setup:
+    ├── setup.py            # Package setup script
+    ├── __init__.py         # Module init
+    └── verify_bundle.py    # Bundle verification
+```
+
+**All scripts are bundled locally** - no external code fetching.
+
+---
+
+## 🔐 Human-in-the-Loop Consent
+
+Before accessing any sensitive files (`IDENTITY.md`, `SOUL.md`, system prompts), AgentShield **explicitly asks for user approval**:
+
+```
+Before proceeding, I need to:
+
+1. Read these files (to detect agent name):
+   • IDENTITY.md
+   • SOUL.md
+
+2. Generate a cryptographic keypair
+   (stored locally in ~/.agentshield/)
+
+3. Send public key to AgentShield API
+
+Proceed? [y/N]: 
+```
+
+**User must explicitly type 'y' or 'yes' to continue.**
+
+### Skip File Reading
+
+To avoid any file access, provide info manually:
+
+```bash
+python initiate_audit.py --name "MyAgent" --platform telegram
 ```
 
 ---
@@ -144,10 +175,11 @@ All sensitive data stays in `~/.openclaw/workspace/.agentshield/`:
 ### 1. Auto-detected Audit (Recommended)
 
 ```bash
-python scripts/initiate_audit.py --auto
+python initiate_audit.py --auto
 ```
 
 The script will:
+- Ask for explicit user consent before reading files
 - Auto-detect your agent name from `IDENTITY.md`, `SOUL.md`
 - Auto-detect platform from environment variables
 - Generate Ed25519 keypair if none exists
@@ -157,13 +189,15 @@ The script will:
 ### 2. Manual Audit (Specify Name & Platform)
 
 ```bash
-python scripts/initiate_audit.py --name "MyAgent" --platform telegram
+python initiate_audit.py --name "MyAgent" --platform telegram
 ```
+
+No file access required - completely manual.
 
 ### 3. Verify Another Agent
 
 ```bash
-python scripts/verify_peer.py --agent-id "agent_abc123xyz"
+python verify_peer.py --agent-id "agent_abc123xyz"
 ```
 
 Returns:
@@ -175,7 +209,7 @@ Returns:
 ### 4. Show Your Certificate
 
 ```bash
-python scripts/show_certificate.py
+python show_certificate.py
 ```
 
 Displays:
@@ -188,9 +222,9 @@ Displays:
 
 ## 📚 Documentation
 
-- **[SKILL.md](SKILL.md)** - Complete skill reference
+- **[SKILL.md](SKILL.md)** - Complete skill reference with Human-in-the-Loop details
 - **[QUICKSTART.md](QUICKSTART.md)** - Step-by-step tutorial for first-time users
-- **[references/api.md](references/api.md)** - API technical documentation
+- **[INSTALLATION.md](INSTALLATION.md)** - Detailed installation instructions
 - **[GitHub](https://github.com/bartelmost/agentshield)** - Source code & issues
 
 ---
@@ -202,16 +236,10 @@ Displays:
   - `cryptography>=41.0.0` (Ed25519 key generation)
   - `requests>=2.31.0` (API communication)
 
-Dependencies are automatically installed via:
+Install dependencies:
 
 ```bash
-pip install -r scripts/requirements.txt
-```
-
-Or using the ClawHub shortcut:
-
-```bash
-clawhub run agentshield-audit install
+pip install -r requirements.txt
 ```
 
 ---
@@ -219,13 +247,13 @@ clawhub run agentshield-audit install
 ## 🔧 Troubleshooting
 
 ### "No certificate found"
-**Solution:** Run `python scripts/initiate_audit.py --auto` to generate one
+**Solution:** Run `python initiate_audit.py --auto` to generate one
 
 ### "Challenge failed"
 **Solution:** Check your system clock. AgentShield uses time-based challenge-response authentication (NTP sync required)
 
 ### "API unreachable"
-**Solution:** Verify internet connection. The API endpoint is `https://agentshield-api-bartel-fe94823ceeea.herokuapp.com`
+**Solution:** Verify internet connection. The API endpoint is `https://agentshield.live/api`
 
 ### "Rate limited"
 **Solution:** Free tier allows 1 audit per hour. Wait 60 minutes between audits.
@@ -233,24 +261,22 @@ clawhub run agentshield-audit install
 ### "Auto-detection failed"
 **Solution:** Use manual mode:
 ```bash
-python scripts/initiate_audit.py --name "YourAgentName" --platform discord
+python initiate_audit.py --name "YourAgentName" --platform discord
 ```
 
 ---
 
 ## 🧑‍💻 Development
 
-### Run Tests
+All scripts are bundled locally. No external downloads.
 
-```bash
-cd ~/.openclaw/workspace/skills/agentshield-audit
-python -m pytest tests/
-```
+### Security Module Structure
 
-### Run Security Module Tests
-
-```bash
-python tests/test_security_modules.py
+```python
+# Security tests are modular - each can be imported independently
+from input_sanitizer import sanitize_input
+from secret_scanner import scan_for_secrets
+from output_dlp import check_output
 ```
 
 ---
@@ -269,7 +295,7 @@ Contributions are welcome! Please:
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details
+MIT License
 
 ---
 
