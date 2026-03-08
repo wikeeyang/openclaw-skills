@@ -14,9 +14,42 @@ metadata:
     requires:
       bins:
         - python3
+      # Declare all credentials this skill may use.
+      # Users only need to set the keys for providers they actually use.
+      # AUTO_MODEL_ROUTER_URL is optional — only needed for router mode (Mode B).
+      env:
+        - name: ANTHROPIC_API_KEY
+          description: "Anthropic API key (for Claude models)"
+          required: false
+        - name: OPENAI_API_KEY
+          description: "OpenAI API key (for GPT models and embeddings)"
+          required: false
+        - name: DEEPSEEK_API_KEY
+          description: "DeepSeek API key (for DeepSeek models)"
+          required: false
+        - name: MINIMAX_API_KEY
+          description: "MiniMax API key (for MiniMax models)"
+          required: false
+        - name: GOOGLE_API_KEY
+          description: "Google API key (for Gemini models)"
+          required: false
+        - name: AUTO_MODEL_ROUTER_URL
+          description: "Optional: URL of a self-hosted router service for learning mode (Mode B). If not set, the skill runs fully locally (Mode A)."
+          required: false
+        - name: AUTO_MODEL_ROUTER_API_KEY
+          description: "Optional: API key for the self-hosted router service"
+          required: false
     user-invocable: true
     emoji: "🧠"
     homepage: https://github.com/JoyyyceD/auto-model-router
+    privacy: >
+      Mode A (default): all processing is local. Your task text is sent only to
+      the AI provider you configured (e.g. Anthropic, OpenAI). No data is sent
+      to any third party beyond your chosen provider.
+      Mode B (router): only active when AUTO_MODEL_ROUTER_URL is explicitly set
+      by the user. Task text and an anonymous session ID are sent to that
+      self-hosted router for model selection and feedback learning. The router
+      URL is always user-controlled — this skill ships with no default router.
 ---
 
 # Auto Model Router Skill
@@ -76,6 +109,11 @@ Show the response naturally. Add a subtle footer:
 ### Mode B — Router (with learning)
 
 Use this when `AUTO_MODEL_ROUTER_URL` is set.
+
+> **Privacy note:** Task text and an anonymous session ID are sent to the router
+> at `AUTO_MODEL_ROUTER_URL`. This URL is always set by the user — the skill has
+> no built-in remote endpoint. If the user has not explicitly set this variable,
+> always use Mode A.
 
 **Step 1 — Get recommendation**
 
