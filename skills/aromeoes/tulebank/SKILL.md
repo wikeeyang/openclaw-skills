@@ -1,11 +1,11 @@
 ---
 name: tulebank
-description: TuleBank — check wallet balance, send ARS to any CVU/ALIAS, swap USDC/wARS, manage beneficiaries, and off-ramp crypto to Argentine bank accounts.
+description: TuleBank — check wallet balance, send ARS to any CVU/ALIAS, swap USDC/wARS, manage beneficiaries, and move funds with ARS off-ramp/on-ramp flows.
 user-invocable: true
 metadata: {"clawdbot":{"requires":{"bins":["tulebank"]}}}
 ---
 
-You can send Argentine pesos (ARS) to any bank account via CVU or ALIAS using the `tulebank` CLI, which talks to a proxy that handles Ripio Ramps API credentials.
+You can send Argentine pesos (ARS) to any bank account via CVU or ALIAS and fund your wallet from ARS bank transfers using the `tulebank` CLI, which talks to a proxy that handles Ripio Ramps API credentials.
 
 ## CVU vs ALIAS
 
@@ -32,8 +32,9 @@ You can send Argentine pesos (ARS) to any bank account via CVU or ALIAS using th
 - **Fiat account activation**: Ripio only allows one enabled fiat account per customer. The `send` command automatically activates the target beneficiary's fiat account before sending. This may take a few extra seconds if the account was suspended.
 - After auto-sending, show the transaction hash and run `tulebank history` to confirm the record.
 - **Swaps**: Use `tulebank swap` to convert between USDC and wARS on Base. wARS converts 1:1 to ARS via off-ramp, so swapping USDC to wARS before sending can lock in the rate.
+- **On-ramp (bank transfer)**: Use `tulebank onramp quote/create/status` for ARS -> wARS (default, session flow) or ARS -> USDC (order flow). Workstream 5 v1 supports `bank_transfer` only.
 - **ARS amounts → just use `--amount`, no `--token`**: When the user specifies an amount in ARS/pesos, ALWAYS use `--amount <n>` WITHOUT `--token`. The `--amount` value is in ARS. The CLI handles everything (picks wARS if available, or auto-swaps USDC→wARS). Never manually calculate USDC equivalents — it introduces rounding errors and the result won't be exact. Only use `--token USDC` when the user explicitly says they want to send USDC (not ARS).
-- **History**: After every send or swap, call `tulebank history` to confirm the transaction was recorded.
+- **History**: After every send, swap, or on-ramp create, call `tulebank history` to confirm the transaction was recorded.
 
 ## Available commands
 
@@ -121,6 +122,22 @@ Shows deposit addresses and transactions for an off-ramp session.
 tulebank quote --from USDC --to ARS --amount 10 [--chain BASE]
 ```
 
+### On-ramp quote (ARS -> wARS or USDC)
+```
+tulebank onramp quote --amount 50000 [--asset wARS|USDC] [--chain BASE]
+```
+
+### Create on-ramp flow (bank transfer)
+```
+tulebank onramp create --amount 50000 [--asset wARS|USDC] [--to-address 0x...] [--chain BASE]
+```
+Creates an on-ramp flow using a fresh quote. `wARS` (default) creates a session; `USDC` creates an order. Uses configured wallet address when available; pass `--to-address` to override.
+
+### Check on-ramp status
+```
+tulebank onramp status --transaction <transaction-id> [--asset wARS|USDC]
+```
+
 ### Check transaction limits
 ```
 tulebank limits
@@ -136,9 +153,10 @@ tulebank fiat-account --id <fiat-account-id>
 tulebank history
 tulebank history --beneficiary "<name>"
 tulebank history --type send
+tulebank history --type onramp
 tulebank history --from 2026-01-01 --to-date 2026-01-31
 ```
-Shows local transaction history. Supports filtering by beneficiary (fuzzy), type (`send`/`swap`), and date range. Default: last 30 days.
+Shows local transaction history. Supports filtering by beneficiary (fuzzy), type (`send`/`swap`/`onramp`), and date range. Default: last 30 days.
 
 ## Smart send rules
 
@@ -211,3 +229,10 @@ Shows local transaction history. Supports filtering by beneficiary (fuzzy), type
 ### Checking a rate before sending
 1. Run `quote --from USDC --to ARS --amount 10`
 2. Tell user: "10 USDC = ~14,300 ARS at current rate"
+
+### Funding wallet from ARS bank transfer
+1. Run `onramp quote --amount 50000`
+2. Ask user to confirm destination wallet address and amount.
+3. Run `onramp create --amount 50000 --yes`
+4. Show session/order ID + payment instructions.
+5. Run `onramp status --transaction <id>` to track progress.
