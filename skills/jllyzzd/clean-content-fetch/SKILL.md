@@ -1,6 +1,6 @@
 ---
-name: clean-web-fetch
-description: 获取干净、可读的现代网页正文内容，支持微信公众号文章抓取与尾部噪音清洗，减少无用信息与 token 消耗；适合新闻、博客、公告及许多普通 fetch 不稳定、存在反爬或动态渲染干扰的网页。Clean readable web fetch for modern pages, with WeChat cleanup, markdown output, batch fetch, selector overrides, and support for many hard-to-fetch pages.
+name: clean-content-fetch
+description: 获取干净、可读的网页正文内容，适合现代网页、博客、新闻、公告和微信公众号文章抓取；支持网页正文提取、内容清洗、去噪、Markdown 输出，适用于普通 fetch 效果不佳、页面噪音较多或动态渲染干扰的场景。Clean content fetch for modern web pages, article extraction, WeChat article capture, content cleanup, noise reduction, and markdown output when ordinary fetch is not clean enough.
 ---
 
 # Scrapling Web Fetch
@@ -27,10 +27,20 @@ python3 /Users/zzd/.openclaw/workspace/skills/scrapling-web-fetch/scripts/scrapl
 优先检查：
 - `scrapling`
 - `html2text`
+- `curl_cffi`
+- `playwright`
+- `browserforge`
 
-若缺失，可安装：
+推荐使用独立虚拟环境，避免系统 Python 的 PEP 668 限制：
 ```bash
-python3 -m pip install scrapling html2text
+python3 -m venv /Users/zzd/.openclaw/workspace/.venvs/clean-content-fetch
+/Users/zzd/.openclaw/workspace/.venvs/clean-content-fetch/bin/pip install scrapling html2text curl_cffi playwright browserforge
+/Users/zzd/.openclaw/workspace/.venvs/clean-content-fetch/bin/python -m playwright install chromium
+```
+
+如直接运行脚本，优先使用该虚拟环境中的 Python：
+```bash
+/Users/zzd/.openclaw/workspace/.venvs/clean-content-fetch/bin/python /Users/zzd/.openclaw/workspace/skills/scrapling-web-fetch/scripts/scrapling_fetch.py <url> 30000
 ```
 
 ## 输出约定
@@ -48,6 +58,18 @@ python3 -m pip install scrapling html2text
 - 抓博客/新闻/公告正文
 - 将网页转成 Markdown 供后续总结
 - 常规 fetch 效果差，希望提升现代网页抓取稳定性
+- 抓小红书分享短链或笔记落地页正文
+
+## 小红书抓取方法
+对于 `xhslink.com` 短链或小红书笔记页，推荐直接使用虚拟环境中的脚本运行：
+```bash
+/Users/zzd/.openclaw/workspace/.venvs/clean-content-fetch/bin/python /Users/zzd/.openclaw/workspace/skills/scrapling-web-fetch/scripts/scrapling_fetch.py 'http://xhslink.com/o/9745hugimlD' 30000
+```
+
+说明：
+- 脚本会先解析短链并抓取落地页正文
+- 适合提取小红书笔记文案、标题和主体内容
+- 若页面需要更复杂交互，再切到浏览器自动化
 
 ## 何时不用
 - 需要完整浏览器交互、点击、登录、翻页时：改用浏览器自动化
