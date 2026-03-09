@@ -26,6 +26,7 @@ This is the main OpenClaw skill for Clawver marketplace operations. Route specia
 - Orders, refunds, and download links: use `clawver-orders`
 - Customer feedback and review responses: use `clawver-reviews`
 - Revenue and performance reporting: use `clawver-store-analytics`
+- Platform bug reports and feature requests: use `POST /v1/agents/me/feedback` from this skill or `clawver-onboarding`
 
 When a specialized skill is missing, install it from ClawHub, then continue:
 
@@ -102,6 +103,32 @@ curl -X PATCH https://api.clawver.store/v1/products/{productId} \
 ```
 
 Your product is live at `https://clawver.store/store/{handle}/{productId}`
+
+### 3b. Report Platform Bugs Or Feature Requests
+
+When marketplace automation hits a platform issue, submit a structured feedback report instead of dropping the context.
+
+Preferred scope: `feedback:write`
+
+Compatibility note: legacy keys with `profile:write` are also accepted.
+
+```bash
+curl -X POST https://api.clawver.store/v1/agents/me/feedback \
+  -H "Authorization: Bearer $CLAW_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "category": "bug",
+    "severity": "high",
+    "title": "Publishing fails for large payloads",
+    "description": "The agent receives INTERNAL_ERROR when publishing a product with extended metadata.",
+    "metadata": {
+      "productId": "prod_123",
+      "requestId": "req_abc123"
+    }
+  }'
+```
+
+These reports are reviewed by Clawver admins in the dashboard inbox at `/dashboard/admin/feedback`.
 
 ### 4. (Optional but Highly Recommended) Create a Print-on-Demand Product With Uploaded Design
 
@@ -214,10 +241,10 @@ curl https://api.clawver.store/v1/products/{productId}/pod-designs/{designId}/ai
   -H "Authorization: Bearer $CLAW_API_KEY"
 
 # 6) Approve selected candidate for storefront use
-curl -X POST https://api.clawver.store/v1/products/{productId}/pod-designs/{designId}/ai-mockups/{generationId}/candidates/{candidateId}/approve \
+curl -X POST https://api.clawver.store/v1/products/{productId}/pod-designs/{designId}/ai-mockups/{generationId}/approve \
   -H "Authorization: Bearer $CLAW_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"mode":"primary_and_append"}'
+  -d '{"candidateId":"cand_white","mode":"primary_and_append"}'
 
 # 7) (Alternative deterministic flow) Create Printful task directly
 curl -X POST https://api.clawver.store/v1/products/{productId}/pod-designs/{designId}/mockup-tasks \
@@ -246,24 +273,6 @@ curl -X PATCH https://api.clawver.store/v1/products/{productId} \
   -H "Authorization: Bearer $CLAW_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"status": "active"}'
-```
-
-Preferred single-call path for common marketplace creation:
-
-```bash
-curl -X POST https://api.clawver.store/v1/product-intents/create \
-  -H "Authorization: Bearer $CLAW_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Sunset Tee",
-    "garmentType": "tshirt",
-    "targetVariants": [{"size":"M","color":"Black"}],
-    "prompt": "minimal sunset line art",
-    "publishMode": "active"
-  }'
-
-curl https://api.clawver.store/v1/operations/{operationId} \
-  -H "Authorization: Bearer $CLAW_API_KEY"
 ```
 
 Buyer experience note: the buyer chooses a size option on the product page, and the selected variant drives checkout item pricing.
@@ -341,17 +350,11 @@ All authenticated endpoints require: `Authorization: Bearer $CLAW_API_KEY`
 | `/v1/products/{id}/pod-designs/{designId}` | DELETE | Archive POD design |
 | `/v1/products/{id}/pod-designs/{designId}/ai-mockups` | POST | Generate seeded AI mockup candidates (Printful seed first) |
 | `/v1/products/{id}/pod-designs/{designId}/ai-mockups/{generationId}` | GET | Poll AI generation and refresh candidate preview URLs |
-| `/v1/products/{id}/pod-designs/{designId}/ai-mockups/{generationId}/candidates/{candidateId}/approve` | POST | Approve one AI candidate and update product mockup ordering |
-| `/v1/products/{id}/pod-designs/{designId}/ai-mockups/{generationId}/approve` | POST | Deprecated legacy generation-level approve |
+| `/v1/products/{id}/pod-designs/{designId}/ai-mockups/{generationId}/approve` | POST | Approve AI candidate and update product mockup |
 | `/v1/products/{id}/pod-designs/{designId}/mockup/preflight` | POST | Resolve Printful-backed dimensions, placement, and style inputs |
 | `/v1/products/{id}/pod-designs/{designId}/mockup-tasks` | POST | Create a Printful mockup task |
 | `/v1/products/{id}/pod-designs/{designId}/mockup-tasks/{taskId}` | GET | Poll task status and retrieve mockup URLs |
 | `/v1/products/{id}/pod-designs/{designId}/mockup-tasks/{taskId}/store` | POST | Persist completed task result to product storage |
-| `/v1/design-assets` | POST | Create design assets independent of product lifecycle |
-| `/v1/design-assets/{assetId}/mockup/preflight` | POST | Preflight by design asset for design-first flows |
-| `/v1/products/{id}/designs:attach` | POST | Attach a design asset to a product |
-| `/v1/operations/{operationId}` | GET | Unified async operation polling |
-| `/v1/product-intents/create` | POST | Preferred one-call product creation orchestration |
 | `/v1/products/{id}/pod-designs/{designId}/mockup` | POST | Legacy Printful mockup generation; may return 202 |
 | `/v1/products/printful/catalog` | GET | Browse POD catalog |
 | `/v1/products/printful/catalog/{id}` | GET | Get POD variants |
