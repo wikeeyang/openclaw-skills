@@ -1,0 +1,11 @@
+{
+  "owner": "gangbo",
+  "slug": "ffhub-ffmpeg",
+  "displayName": "FFHub FFmpeg Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773023476978,
+    "commit": null
+  },
+  "history": []
+}
