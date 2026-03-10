@@ -7,6 +7,8 @@ import requests
 import os
 import random
 import string
+import re
+import sys
 from dotenv import load_dotenv
 
 # 加载 .env 环境变量
@@ -49,12 +51,30 @@ class VetMewServerError(VetMewError):
 
 class VetMewClient:
     def __init__(self, api_key=None, api_secret=None):
-        self.api_key = api_key or os.getenv("VETMEW_API_KEY")
-        self.api_secret = api_secret or os.getenv("VETMEW_API_SECRET")
+        self.api_key = api_key
+        self.api_secret = api_secret
         self.base_url = "https://platformx.vetmew.com"
 
+        # 如果未传入显式参数，尝试从组合环境变量加载
         if not self.api_key or not self.api_secret:
-            raise VetMewAuthError(6001, "缺少 API Key 或 API Secret。请检查 .env 文件或环境变量。")
+            auth_token = os.getenv("VETMEW_AUTH_TOKEN")
+            if auth_token and ":" in auth_token:
+                parts = auth_token.split(":", 1)
+                self.api_key = self.api_key or parts[0]
+                self.api_secret = self.api_secret or parts[1]
+
+        # 只有在没有显式传参时，才考虑引导逻辑
+        if not api_key and not api_secret:
+            # 如果解析出来的 key/secret 是占位符，或者环境变量本身是占位符
+            if self._is_placeholder(self.api_key) or self._is_placeholder(self.api_secret) or self._is_placeholder(os.getenv("VETMEW_AUTH_TOKEN")):
+                if sys.stdin.isatty():
+                    self.api_key, self.api_secret = self.onboard_credentials()
+                else:
+                    raise VetMewAuthError(6001, "缺少 VETMEW_AUTH_TOKEN。请检查 .env 文件或环境变量。")
+
+        # 最终校验
+        if not self.api_key or not self.api_secret or self._is_placeholder(self.api_key) or self._is_placeholder(self.api_secret):
+            raise VetMewAuthError(6001, "认证凭据无效或缺失。格式应为 'KEY:SECRET'。")
 
         # 错误码到异常类的映射
         self._error_mapping = {
@@ -69,6 +89,76 @@ class VetMewClient:
             6010: VetMewImageError,
             6101: VetMewServerError
         }
+
+    def _is_placeholder(self, value):
+        """检查值是否缺失或为占位符"""
+        placeholders = [
+            None, "", 
+            "your_api_key_here:your_api_secret_here",
+            "your_api_key_here", 
+            "your_api_secret_here"
+        ]
+        if value in placeholders:
+            return True
+        # 检查是否包含占位符关键字
+        if value and ("your_api_key_here" in value or "your_api_secret_here" in value):
+            return True
+        return False
+
+    def onboard_credentials(self):
+        """交互式配置向导"""
+        print("\n" + "┌" + "─" * 58 + "┐")
+        print("│" + " " * 18 + "VetMew API 快速配置向导" + " " * 17 + "│")
+        print("└" + "─" * 58 + "┘")
+        print("1. 请登录 https://open.vetmew.com/ 获取您的凭据。")
+        print("2. 将 API Key 和 API Secret 以 'Key:Secret' 的格式组合。")
+        print("-" * 60)
+        
+        new_token = input("请输入 VETMEW_AUTH_TOKEN: ").strip()
+
+        if ":" not in new_token:
+            print("\n错误: 格式不正确，必须为 'KEY:SECRET'。")
+            sys.exit(1)
+
+        parts = new_token.split(":", 1)
+        new_key, new_secret = parts[0], parts[1]
+
+        if not new_key or not new_secret:
+            print("\n错误: 凭据内容不能为空，配置中止。")
+            sys.exit(1)
+
+        self._save_credentials(new_key, new_secret)
+        print("\n[✔] 配置已成功保存至 .env 文件。")
+        print("-" * 60 + "\n")
+        
+        return new_key, new_secret
+
+    def _save_credentials(self, api_key, api_secret):
+        """使用正则表达式安全地将凭据以组合形式写入 .env 文件"""
+        env_path = os.path.join(os.getcwd(), '.env')
+        content = ""
+        
+        if os.path.exists(env_path):
+            with open(env_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+        # 更新或追加组合变量
+        auth_token = f"{api_key}:{api_secret}"
+        pattern = r'^VETMEW_AUTH_TOKEN=.*'
+        replacement = f'VETMEW_AUTH_TOKEN={auth_token}'
+
+        if re.search(pattern, content, re.MULTILINE):
+            content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
+        else:
+            if content and not content.endswith('\n'):
+                content += '\n'
+            content += replacement + '\n'
+
+        with open(env_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        # 立即加载新环境变量到当前进程
+        load_dotenv(env_path, override=True)
 
     def _handle_error_response(self, response_json):
         """解析 API 返回的 JSON 错误信息并抛出对应异常"""

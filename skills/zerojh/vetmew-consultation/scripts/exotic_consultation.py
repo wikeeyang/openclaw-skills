@@ -4,17 +4,27 @@ import sys
 from client import VetMewClient, VetMewAuthError, VetMewSessionError
 
 def handle_auth_error(e):
-    """输出引导式认证错误指引"""
+    """输出引导式认证错误指引，并提示重新配置"""
     print("\n" + "="*40)
     print("❌ VetMew API 认证失败：密钥缺失或无效")
-    print("-"*40)
+    print("-" * 40)
     print(f"原因为: {e.message}")
+
+    if sys.stdin.isatty():
+        choice = input("\n是否需要现在重新配置 API 凭据？ (y/N): ").strip().lower()
+        if choice == 'y':
+            client = VetMewClient()
+            client.onboard_credentials()
+            print("\n[🚀] 配置已更新。请重新运行刚才的命令。")
+            return
+
     print("\n[ 操作建议 ]")
     print("1. 检查根目录下的 .env 文件是否已创建并填写了正确的内容。")
-    print("2. 确保环境变量 VETMEW_API_KEY 和 VETMEW_API_SECRET 的值正确无误。")
+    print("2. 确保环境变量 VETMEW_AUTH_TOKEN (格式为 KEY:SECRET) 的值正确无误。")
     print("3. 确认密钥值没有多余的空格或双引号。")
     print("\n参考指引: 见 SKILL.md 中的 Setup & Configuration 章节")
     print("="*40)
+
 
 def handle_session_error(e):
     """输出引导式会话错误指引"""
