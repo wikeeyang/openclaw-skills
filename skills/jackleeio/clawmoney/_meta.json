@@ -1,11 +1,17 @@
 {
   "owner": "jackleeio",
   "slug": "clawmoney",
-  "displayName": "ClawMoney",
+  "displayName": "clawmoney",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1772768050509,
-    "commit": "https://github.com/openclaw/skills/commit/e44750cbbf52e6f7f36ecd8a6333924790a99db2"
+    "version": "0.4.0",
+    "publishedAt": 1773110335242,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1772768050509,
+      "commit": "https://github.com/openclaw/skills/commit/e44750cbbf52e6f7f36ecd8a6333924790a99db2"
+    }
+  ]
 }
