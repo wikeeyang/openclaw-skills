@@ -50,6 +50,7 @@ description: 腾讯云行驶证识别(VehicleLicenseOCR)接口调用技能。当
 | ImageUrl | str | 否(二选一) | 图片URL地址，下载时间不超过3秒，都提供时只使用ImageUrl |
 | CardSide | str | 否 | `FRONT`(主页正面，有红色印章) / `BACK`(副页正面，有号码号牌) / `DOUBLE`(主副双面)，默认FRONT |
 | TractorCardSide | str | 否 | `FRONT`(拖拉机行驶证主页) / `BACK`(拖拉机行驶证副页) |
+| **UserAgent** | **str** | **否** | **请求来源标识(可选)，用于追踪调用来源，统一固定为`Skills`** |
 
 ### 输出格式
 
@@ -156,5 +157,4 @@ python scripts/main.py --image-base64 "/path/to/vehicle_license.jpg"
 python scripts/main.py --image-url "https://example.com/tractor_license.jpg" --tractor-card-side BACK
 
 # 指定地域
-python scripts/main.py --image-url "https://example.com/vehicle_license.jpg" --region ap-beijing
-```
+python scripts/main.py --image-url "https://example.com/vehicle_license.jpg" --region ap-beijing```
