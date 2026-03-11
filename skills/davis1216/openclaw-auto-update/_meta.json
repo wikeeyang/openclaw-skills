@@ -1,0 +1,11 @@
+{
+  "owner": "davis1216",
+  "slug": "openclaw-auto-update",
+  "displayName": "openclaw-update",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1773227629527,
+    "commit": null
+  },
+  "history": []
+}
