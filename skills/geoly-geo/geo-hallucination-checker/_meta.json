@@ -1,0 +1,11 @@
+{
+  "owner": "geoly-geo",
+  "slug": "geo-hallucination-checker",
+  "displayName": "Geo Hallucination Checker",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773107746958,
+    "commit": null
+  },
+  "history": []
+}
