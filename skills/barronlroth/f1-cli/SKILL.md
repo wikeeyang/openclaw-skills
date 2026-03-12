@@ -16,16 +16,19 @@ metadata:
 
 A Go CLI wrapping the [OpenF1 API](https://openf1.org) for querying F1 telemetry, timing, and session data.
 
-## Binary Location
+## Installation
 
-The binary should be at one of:
-- `f1` (if installed to PATH)
-- `/Users/barron/Developer/f1-cli/f1` (built from source)
-
-If not found, build it:
 ```bash
-cd /Users/barron/Developer/f1-cli && go build -o f1 ./cmd/f1
+brew tap barronlroth/tap
+brew install f1-cli
 ```
+
+Or from source:
+```bash
+go install github.com/barronlroth/f1-cli/cmd/f1@latest
+```
+
+The binary name is `f1`.
 
 ## Quick Reference
 
