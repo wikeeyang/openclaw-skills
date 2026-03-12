@@ -124,7 +124,7 @@ Max open positions:  10       (was 5)
 ```
 workspace-template/
   SOUL.md           -- Agent personality, core behaviors, risk parameters
-  TOOLS.md          -- Complete tool reference (23 tools, all parameters)
+  TOOLS.md          -- Complete tool reference (57 tools, all parameters)
   SKILLS.md         -- ClawHub skill references (openpump-solana-mcp)
   HEARTBEAT.md      -- 30-minute autonomous check cycle procedure
   openclaw.json     -- MCP server configuration
@@ -215,5 +215,5 @@ This agent trades real SOL on the Solana blockchain. Memecoin trading is extreme
 
 - [OpenPump](https://openpump.io) -- Platform and API key management
 - [OpenPump Docs](https://docs.openpump.io) -- API documentation
-- [@openpump/mcp-server](https://www.npmjs.com/package/@openpump/mcp-server) -- npm package
+- [@openpump/mcp](https://www.npmjs.com/package/@openpump/mcp) -- npm package
 - [OpenClaw](https://github.com/openclaw/openclaw) -- Agent framework
