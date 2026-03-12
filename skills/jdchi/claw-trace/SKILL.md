@@ -3,8 +3,7 @@ name: claw-trace
 license: MIT
 description: |
   Track and visualize the OpenClaw agent's work process. Record tool call inputs, outputs, duration, and status, and present them in an easy-to-read format.
-  Triggered when user asks to view work process, call history, or tool usage records.
-  Also used for visualizing AI thinking process and decision steps.
+  **IMPORTANT**: When config `enable = true`, this skill MUST automatically show trace output after EVERY tool call, WITHOUT waiting for user to ask "show trace".
   Only applicable to OpenClaw platform.
 ---
 
@@ -54,6 +53,26 @@ Record complete input/output for each call (except sensitive info).
 
 Generate Markdown report saved to workspace.
 
+### Module 6: Filters (Optional)
+
+Filter tool calls by various criteria:
+
+| Filter Type | Command | Example |
+|-------------|---------|---------|
+| By tool name | "filter: tool_name" | "filter: web_search" |
+| By result | "filter: success" / "filter: failed" | "filter: failed" |
+| By time | "filter: last N calls" | "filter: last 5 calls" |
+| By keyword | "filter: keyword in output" | "filter: error" |
+
+Multiple filters can be combined: "filter: web_search and failed"
+
+### Module 7: Export Format (Optional)
+
+Choose export format:
+- Markdown (default)
+- JSON
+- HTML (with syntax highlighting)
+
 ## Usage
 
 ### Configuration File
@@ -86,6 +105,10 @@ User can modify config through conversation:
 | "use simple mode" | mode = simple |
 | "use full mode" | mode = full |
 | "enable statistics" | statistics = true |
+| "enable filters" | filters = true |
+| "filter: tool_name" | filter by tool name |
+| "filter: success/failed" | filter by result |
+| "filter: last N calls" | filter by count |
 | "output in English" | language = en |
 | "output in Chinese" | language = zh |
 
@@ -94,12 +117,12 @@ User can modify config through conversation:
 1. **Each time Skill is called**: Read `config.json` first to get current config
 2. **Based on config**:
    - enable = false → Don't show (unless user explicitly requests)
-   - enable = true → **Must show**, output according to mode and enabledModules
+   - enable = true → **MUST automatically show** trace output after every tool call, do NOT wait for user to ask
 3. **When user modifies config**: Update config.json and save
 
 ### ⚠️ Important Rule
 
-**When enable = true, trace output MUST be included in every reply after tool calls, do not omit!**
+**When enable = true, trace output MUST be included in EVERY reply after tool calls automatically, without waiting for user to say "show trace"!**
 
 ### Language Auto-Detection
 
