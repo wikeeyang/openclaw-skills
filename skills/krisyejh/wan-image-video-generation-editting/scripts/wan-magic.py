@@ -330,6 +330,93 @@ def image2video_get(args):
 
 
 # ──────────────────────────────────────────────
+#  reference2video-gen  (wan2.6-r2v-flash, HTTP async)
+# ──────────────────────────────────────────────
+def reference2video_gen(args):
+    api_key = get_api_key()
+    url = f"{BASE_URL}/api/v1/services/aigc/video-generation/video-synthesis"
+
+    payload = {
+        "model": "wan2.6-r2v-flash",
+        "input": {
+            "prompt": args.prompt,
+            "reference_urls": args.reference_files,
+        },
+        "parameters": {
+            "size": args.size,
+            "duration": args.duration,
+            "shot_type": args.shot_type,
+            "prompt_extend": True,
+        },
+    }
+
+    headers = get_headers(api_key, async_mode=True)
+
+    print(f"[reference2video-gen] Submitting task …")
+    print(f"  Prompt         : {args.prompt}")
+    print(f"  Reference files: {args.reference_files}")
+    print(f"  Size           : {args.size}")
+    print(f"  Duration       : {args.duration}s")
+    print(f"  Shot type      : {args.shot_type}")
+
+    resp = requests.post(url, headers=headers, json=payload, timeout=60)
+    result = resp.json()
+
+    if "code" in result:
+        print(f"Error: {result.get('code')} - {result.get('message')}", file=sys.stderr)
+        sys.exit(1)
+
+    output = result.get("output", {})
+    task_id = output.get("task_id", "")
+    task_status = output.get("task_status", "")
+
+    print(f"\nTask submitted successfully!")
+    print(f"  Task ID : {task_id}")
+    print(f"  Status  : {task_status}")
+    print(f"\nTo check the result, run:")
+    print(f"  python3 wan-magic.py reference2video-get --task-id {task_id}")
+
+    print("\n--- Full Response ---")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+# ──────────────────────────────────────────────
+#  reference2video-get  (poll async task)
+# ──────────────────────────────────────────────
+def reference2video_get(args):
+    api_key = get_api_key()
+    url = f"{BASE_URL}/api/v1/tasks/{args.task_id}"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    print(f"[reference2video-get] Checking task: {args.task_id}")
+
+    resp = requests.get(url, headers=headers, timeout=60)
+    result = resp.json()
+
+    if "code" in result:
+        print(f"Error: {result.get('code')} - {result.get('message')}", file=sys.stderr)
+        sys.exit(1)
+
+    output = result.get("output", {})
+    task_status = output.get("task_status", "")
+
+    print(f"  Task ID : {output.get('task_id', '')}")
+    print(f"  Status  : {task_status}")
+
+    if task_status == "SUCCEEDED":
+        video_url = output.get("video_url", "")
+        print(f"  Video   : {video_url}")
+    elif task_status == "FAILED":
+        print(f"  Error   : {output.get('code', '')} - {output.get('message', '')}")
+    else:
+        print(f"\nTask is still {task_status}. Please check again later:")
+        print(f"  python3 wan-magic.py reference2video-get --task-id {args.task_id}")
+
+    print("\n--- Full Response ---")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+# ──────────────────────────────────────────────
 #  CLI entry point
 # ──────────────────────────────────────────────
 def main():
@@ -372,6 +459,18 @@ def main():
     p = subparsers.add_parser("image2video-get", help="Get image-to-video task result")
     p.add_argument("--task-id", required=True, help="Task ID from image2video-gen")
 
+    # --- reference2video-gen ---
+    p = subparsers.add_parser("reference2video-gen", help="Submit reference-to-video task (wan2.6-r2v-flash)")
+    p.add_argument("--prompt", required=True, help="Text prompt for video generation")
+    p.add_argument("--reference-files", nargs="+", required=True, help="Referenced image/video URLs for video generation (images: 0-5, videos: 0-3, total <= 5)")
+    p.add_argument("--size", default="1920*1080", help="Video resolution WxH (default: 1920*1080)")
+    p.add_argument("--duration", type=int, default=5, help="Video duration in seconds, 2-10 (default: 5)")
+    p.add_argument("--shot-type", default="single", choices=["single", "multi"], help="Shot type: single (continuous) or multi (intelligent multi-shot) (default: single)")
+
+    # --- reference2video-get ---
+    p = subparsers.add_parser("reference2video-get", help="Get reference-to-video task result")
+    p.add_argument("--task-id", required=True, help="Task ID from reference2video-gen")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -385,6 +484,8 @@ def main():
         "text2video-get": text2video_get,
         "image2video-gen": image2video_gen,
         "image2video-get": image2video_get,
+        "reference2video-gen": reference2video_gen,
+        "reference2video-get": reference2video_get,
     }
 
     handler = command_map.get(args.command)
