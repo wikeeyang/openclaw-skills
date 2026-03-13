@@ -1,8 +1,16 @@
 ---
 triggers:
+  - 香蕉生图
+  - 香蕉文生图
+  - 香蕉图生图
+  - 香蕉技能
   - nano-banana-2
   - nanobanana
   - nano banana
+  - banana生图
+  - banana技能
+  - banana文生图
+  - banana图生图
   - 生图技能
   - 文生图
   - 我要做文生图
