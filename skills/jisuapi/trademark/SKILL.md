@@ -151,7 +151,7 @@ python3 skills/trademark/trademark.py detail '{"regno":"4952050","classid":"42"}
 
 ## 常见错误码
 
-来源于 [官方商标文档](https://www.jisuapi.com/api/trademark/)：
+来源于 [极速数据商标文档](https://www.jisuapi.com/api/trademark/)：
 
 | 代号 | 说明             |
 |------|------------------|
