@@ -1,11 +1,17 @@
 {
   "owner": "xueyetianya",
   "slug": "deploy-helper",
-  "displayName": "deploy-helper",
+  "displayName": "Deploy Helper",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773199059571,
-    "commit": "https://github.com/openclaw/skills/commit/ccb571a7192faa9886fec505aa863b539b00e2e5"
+    "version": "2.2.0",
+    "publishedAt": 1773421186486,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773199059571,
+      "commit": "https://github.com/openclaw/skills/commit/ccb571a7192faa9886fec505aa863b539b00e2e5"
+    }
+  ]
 }
