@@ -1,0 +1,11 @@
+{
+  "owner": "chucklong",
+  "slug": "alicloud-database-rds-custom",
+  "displayName": "Alicloud Database RDS Custom",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773391540646,
+    "commit": null
+  },
+  "history": []
+}
