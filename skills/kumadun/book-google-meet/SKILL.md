@@ -1,210 +1,243 @@
 ---
 name: book-google-meet
-description: Book Google Meet meetings from the command line.
-# Registry Metadata:
-# - Required binaries: gog (for OAuth credential management)
-# - Optional env vars: GOG_CREDENTIALS_PATH (custom path to gog credentials)
-# - Install methods: brew (macOS/Linux), manual download (Windows)
-metadata: {"clawbot":{"emoji":"🎥","requires":{"bins":["gog"],"envVars":["GOG_CREDENTIALS_PATH"]},"install":[{"id":"brew","kind":"brew","formula":"steipete/tap/gogcli","bins":["gog"],"label":"Install gog (brew)"},{"id":"manual-windows","kind":"manual","label":"Windows users - gog cannot be installed via brew","instructions":"gog is not available via Homebrew on Windows. Install options: 1) Download from: https://github.com/steipete/gogcli/releases 2) Or install via Go: go install github.com/steipete/gogcli@latest"}]}}
+description: Create scheduled Google Calendar events with OPEN access Google Meet spaces.
+metadata:
+  {
+    "clawbot":
+      {
+        "emoji": "🎥",
+        "requires":
+          {
+            "packages":
+              [
+                "google-auth",
+                "google-auth-oauthlib",
+                "google-api-python-client",
+              ],
+            "files": ["client_secrets.json", "book_meeting.py"],
+            "primaryEnv": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+            "writes": ["meeting_token.pickle"],
+          },
+        "install":
+          [
+            {
+              "kind": "pip",
+              "packages":
+                [
+                  "google-auth",
+                  "google-auth-oauthlib",
+                  "google-api-python-client",
+                ],
+              "label": "Install Python dependencies",
+            },
+          ],
+      },
+  }
 ---
-
-> ⚠️ **Required Binary**: This skill requires the `gog` CLI tool for OAuth credential management. See installation instructions below.
 
 # book-google-meet
 
-Create Google Meet spaces with custom access settings using the Google Meet API v2.
+Create scheduled Google Calendar events with **OPEN access** Google Meet spaces.
+
+## Quick Start
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Get OAuth credentials from Google Cloud Console
+#    - Enable Google Calendar API and Google Meet API
+#    - Create OAuth 2.0 Desktop app credentials
+#    - Download client_secrets.json
+
+# 3. Place client_secrets.json in the skill directory
+
+# 4. Run the script
+python book_meeting.py --title "My Meeting" --date "2026-03-12" --time "15:00" --duration 45 --timezone "Asia/Shanghai"
+```
 
 ## Prerequisites
 
-### 1. Install gog CLI
+### 1. Google Cloud Project Setup
 
-gog is **required** for OAuth authentication.
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project
+3. Enable APIs:
+   - [Google Calendar API](https://console.developers.google.com/apis/api/calendar.googleapis.com/overview)
+   - [Google Meet API](https://console.developers.google.com/apis/api/meet.googleapis.com/overview)
 
-**macOS/Linux:**
+### 2. OAuth Consent Screen
+
+1. Go to [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent)
+2. Select **External** user type
+3. Fill in app name and contact email
+4. Add scope: `https://www.googleapis.com/auth/meetings.space.settings`
+5. Set publishing status to **In production**
+
+### 3. Create OAuth Credentials
+
+1. Go to [Credentials](https://console.cloud.google.com/apis/credentials)
+2. Click **Create Credentials** → **OAuth client ID**
+3. Select **Desktop app** application type
+4. Download JSON and save as `client_secrets.json`
+
+**Alternative:** Set environment variables instead of using client_secrets.json:
 ```bash
-brew install steipete/tap/gogcli
+export GOOGLE_CLIENT_ID='your-client-id'
+export GOOGLE_CLIENT_SECRET='your-client-secret'
 ```
 
-**Windows:**
-```powershell
-# gog is not available via Homebrew on Windows
-# Download from: https://github.com/steipete/gogcli/releases
-# Or install via Go:
-go install github.com/steipete/gogcli@latest
-```
-
-> ⚠️ **Windows users**: gog cannot be installed via brew. Please download the binary from the releases page or install with Go.
-
-### 2. Authenticate with gog
-
-```bash
-gog auth credentials /path/to/client_secret.json
-gog auth add your@email.com --services meet
-gog auth list
-```
-
-> **Note**: Use `--services meet` (not `calendar`) to ensure the correct OAuth scope is requested for the Meet API.
-
-### 3. Enable Google Meet API
-
-Go to: https://console.developers.google.com/apis/api/meet.googleapis.com/overview
-
-Enable the **Google Meet API** for your project.
-
-### 4. Install Python Dependencies
-
-```bash
-pip install google-auth google-auth-oauthlib
-```
-
-## Required OAuth Scope
+## Required OAuth Scopes
 
 ```
-https://www.googleapis.com/auth/meetings.space.created
+https://www.googleapis.com/auth/calendar.events
+https://www.googleapis.com/auth/calendar
+https://www.googleapis.com/auth/meetings.space.settings
 ```
 
-## API Endpoint
-
-```
-POST https://meet.googleapis.com/v2/spaces
-```
-
-## SpaceConfig Options
-
-### AccessType
-| Value | Description |
-|-------|-------------|
-| `OPEN` | Anyone with the link can join without knocking |
-| `TRUSTED` | Org members + invited external users can join without knocking |
-| `RESTRICTED` | Only invitees can join without knocking |
-
-### ArtifactConfig
-| Config | Option | Description |
-|--------|--------|-------------|
-| `recordingConfig` | `autoRecordingGeneration: ON` | Auto-record when privileged user joins |
-| `transcriptionConfig` | `autoTranscriptionGeneration: ON` | Auto-transcribe when privileged user joins |
-
-## Request Body Example
-
-```json
-{
-  "config": {
-    "accessType": "OPEN",
-    "entryPointAccess": "ALL",
-    "artifactConfig": {
-      "recordingConfig": {
-        "autoRecordingGeneration": "ON"
-      },
-      "transcriptionConfig": {
-        "autoTranscriptionGeneration": "ON"
-      }
-    }
-  }
-}
-```
-
-## Response Fields
-
-| Field | Description |
-|-------|-------------|
-| `name` | Unique space identifier (e.g., `spaces/-yy3uKlef_QB`) |
-| `meetingUri` | Full URL to join (e.g., `https://meet.google.com/cka-oqpj-ohs`) |
-| `meetingCode` | Short code for joining (e.g., `cka-oqpj-ohs`) |
-| `config.accessType` | Access control setting |
-| `config.artifactConfig` | Recording/transcription settings |
+**Note:** Use `meetings.space.settings` (non-sensitive) instead of `meetings.space.created` (sensitive).
 
 ## Usage
 
 ### Basic Usage
 
 ```bash
-python create_meet_space.py
+python book_meeting.py --title "Team Meeting" --date "2026-03-12" --time "15:00" --duration 45 --timezone "Asia/Shanghai"
 ```
 
-First run opens browser for OAuth authorization. Token is cached in `meet_token.pickle`.
-
-### Command Line Options
+### With Attendees
 
 ```bash
-# Use custom credentials file
-python create_meet_space.py --credentials /path/to/credentials.json
+python book_meeting.py --title "Team Meeting" --date "2026-03-12" --time "15:00" --duration 45 \
+  --timezone "Asia/Shanghai" \
+  --attendees "user1@example.com,user2@example.com"
+```
 
-# Or set environment variable
-export GOG_CREDENTIALS_PATH=/path/to/credentials.json
-python create_meet_space.py
+### With Description
 
-# Create meeting with restricted access
-python create_meet_space.py --access-type RESTRICTED
+```bash
+python book_meeting.py --title "Team Meeting" --date "2026-03-12" --time "15:00" --duration 45 \
+  --timezone "Asia/Shanghai" \
+  --description "Weekly sync meeting"
+```
 
-# Disable auto-recording or transcription
-python create_meet_space.py --no-recording
-python create_meet_space.py --no-transcription
+### Access Types
+
+```bash
+# OPEN - Anyone with link can join (default)
+python book_meeting.py --title "Public Meeting" --date "2026-03-12" --time "15:00" --duration 45 \
+  --timezone "Asia/Shanghai" --access-type OPEN
+
+# TRUSTED - Org members + invited external users
+python book_meeting.py --title "Internal Meeting" --date "2026-03-12" --time "15:00" --duration 45 \
+  --timezone "Asia/Shanghai" --access-type TRUSTED
+
+# RESTRICTED - Only invitees
+python book_meeting.py --title "Private Meeting" --date "2026-03-12" --time "15:00" --duration 45 \
+  --timezone "Asia/Shanghai" --access-type RESTRICTED
+```
+
+## Command Line Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--title`, `-t` | Meeting title (required) | - |
+| `--date`, `-d` | Meeting date (YYYY-MM-DD) | - |
+| `--time` | Meeting start time (HH:MM) | - |
+| `--duration` | Duration in minutes | 45 |
+| `--timezone`, `-z` | Timezone | America/New_York |
+| `--attendees` | Comma-separated email list | - |
+| `--description` | Meeting description | - |
+| `--access-type` | OPEN, TRUSTED, or RESTRICTED | OPEN |
+| `--credentials`, `-c` | Path to client_secrets.json | client_secrets.json |
+| `--token-path` | Path to store OAuth token | meeting_token.pickle |
+
+## Output Example
+
+```
+🚀 Step 1: Creating Calendar event with Meet conference...
+✅ Calendar event created with Meet conference
+   Meeting Code: abc-defg-hij
+
+🚀 Step 2: Looking up Meet space using meeting code...
+✅ Found Meet space: spaces/xxxxxxxxxx
+
+🚀 Step 3: Patching Meet space to OPEN access...
+✅ Meet space patched successfully!
+   Access Type: OPEN
+
+============================================================
+✅ Meeting created successfully!
+============================================================
+
+📅 Title: Team Meeting
+🕐 Start: 2026-03-12T15:00:00
+🕐 End: 2026-03-12T15:45:00
+🌐 Timezone: Asia/Shanghai
+
+🔗 Meet URL: https://meet.google.com/abc-defg-hij
+📞 Meeting Code: abc-defg-hij
+🔓 Access Type: OPEN
+🆔 Space Name: spaces/xxxxxxxxxx
+
+📧 Calendar Link: https://calendar.google.com/calendar/event?eid=...
+🆔 Event ID: xxxxxxxxxxxxxx
+============================================================
 ```
 
 ## How It Works
 
-1. **Load gog credentials** from gog's stored credentials file
-2. **OAuth flow** — authenticate with Google (scope: `meetings.space.created`)
-3. **Cache token** in `meet_token.pickle` for future runs
-4. **Call Meet API v2** — `POST /v2/spaces` with config
-5. **Return meeting details** — URI, code, access settings
-
-### Credential File Location
-
-The script loads client credentials from gog's stored credentials. By default, this is:
-- **Windows**: `%APPDATA%/gogcli/credentials.json`
-- **macOS/Linux**: `~/.config/gogcli/credentials.json`
-
-To use a custom credentials file, set the environment variable:
-```bash
-export GOG_CREDENTIALS_PATH=/path/to/credentials.json
-```
-
-## Notes
-
-- **No Calendar event created** — this is a standalone Meet space
-- **Auto-recording** requires a user with recording privileges to join
-- **Auto-transcription** requires a user with transcription privileges to join
-- Recordings and transcriptions are saved to Google Drive
+1. **Calendar API** - Create event with Meet conference
+2. **Meet API (spaces.get)** - Look up Meet space using meeting code
+3. **Meet API (spaces.patch)** - Update space to set `accessType=OPEN`
 
 ## Troubleshooting
 
-### 403 PERMISSION_DENIED — API Not Enabled
-Enable Meet API at:
-```
-https://console.developers.google.com/apis/api/meet.googleapis.com/overview?project=YOUR_PROJECT_ID
-```
+### 403 Permission Denied
 
-### 401 UNAUTHENTICATED — Invalid Credentials
-- Delete `meet_token.pickle` to force re-authentication
+**Cause:** Using `meetings.space.created` scope (sensitive) without additional verification.
+
+**Solution:** Use `meetings.space.settings` scope (non-sensitive) instead. Already fixed in the script.
+
+### API Not Enabled
+
+Enable both APIs in Google Cloud Console:
+- Calendar API: https://console.developers.google.com/apis/api/calendar.googleapis.com/overview
+- Meet API: https://console.developers.google.com/apis/api/meet.googleapis.com/overview
+
+### Invalid Credentials
+
+Delete `meeting_token.pickle` to force re-authentication:
+```bash
+rm meeting_token.pickle
+```
 
 ## Files
 
-- `create_meet_space.py` — Main script
-- `meet_token.pickle` — Cached OAuth credentials (auto-generated)
+- `book_meeting.py` - Main script
+- `client_secrets.json` - OAuth credentials (you provide)
+- `meeting_token.pickle` - Cached OAuth token (auto-generated)
+- `requirements.txt` - Python dependencies
 
-### Security Notes
+## Security Notes
 
-⚠️ **Sensitive Files**: The following files contain credentials and should be protected:
+⚠️ **Sensitive Files:**
 
-| File | Description | Security Recommendation |
-|------|-------------|------------------------|
-| `meet_token.pickle` | Cached OAuth tokens (access token + refresh token) | Keep in a secure directory; delete when no longer needed |
-| `gogcli/credentials.json` | OAuth client credentials | Protect with appropriate file permissions; do not commit to version control |
+| File | Description | Security |
+|------|-------------|----------|
+| `meeting_token.pickle` | Cached OAuth tokens (contains refresh token) | Keep secure; delete when not needed; do not commit to version control |
+| `client_secrets.json` | OAuth client credentials | Never commit to version control; protect as password |
 
-**To delete cached credentials:**
-```bash
-rm meet_token.pickle  # Force re-authentication on next run
-```
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GOG_CREDENTIALS_PATH` | Path to gog credentials JSON file | Windows: `%APPDATA%/gogcli/credentials.json`<br>macOS/Linux: `~/.config/gogcli/credentials.json` |
+⚠️ **Token File Warning:**
+The script writes `meeting_token.pickle` to disk after first OAuth authorization. This file contains sensitive OAuth tokens including refresh tokens that can be used to access your Google account. Protect this file:
+- Do not share it
+- Do not commit it to version control
+- Delete it when no longer needed
+- Ensure proper file permissions (readable only by owner)
 
 ## References
 
-- Google Meet API docs: https://developers.google.com/workspace/meet/api/guides
-- Spaces resource: https://developers.google.com/workspace/meet/api/reference/rest/v2/spaces
-- gog CLI: https://github.com/steipete/gogcli
+- [Google Calendar API](https://developers.google.com/calendar/api/v3/reference)
+- [Google Meet API](https://developers.google.com/workspace/meet/api/reference/rest)
+- [Meet spaces.get](https://developers.google.com/workspace/meet/api/reference/rest/v2/spaces/get)
+- [Meet spaces.patch](https://developers.google.com/workspace/meet/api/reference/rest/v2/spaces/patch)
