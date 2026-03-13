@@ -1,7 +1,7 @@
 ---
 name: gene2ai
-description: Your personal health data hub for AI agents. Query genomic insights (health risks, drug responses, CYP450 metabolizer status, HLA allele typing, APOE genotype, nutrition, traits, ancestry), upload medical documents for AI-powered parsing, record daily health metrics, and explore genomic-lab cross-references — all through natural conversation.
-version: 3.0.0
+description: Your personal health data hub for AI agents. Query genomic insights, upload medical documents, record daily health metrics, explore genomic-lab cross-references, receive personalized daily health briefings, and get contextual health advice woven into everyday conversations — all powered by your actual genetic and clinical data.
+version: 3.3.1
 metadata:
   openclaw:
     requires:
@@ -48,6 +48,23 @@ Use this skill whenever the user:
 - Asks about connections between lab results and genetics (e.g., "My LDL is high — do I have genetic risk factors?")
 - Wants a comprehensive risk overview combining genomic and lab data
 - Asks for a holistic health assessment
+
+### Contextual Health Advisory (Passive — Always On)
+- The conversation touches on **medication, supplements, or drugs** — check CYP450 metabolizer status and drug sensitivities before responding
+- The conversation touches on **diet, nutrition, or food choices** — check nutrition flags and relevant genetic markers
+- The conversation touches on **exercise, fitness, or sports** — check trait markers (muscle type, endurance, injury risk)
+- The conversation touches on **travel, altitude, or climate** — check relevant genetic adaptations
+- The conversation touches on **sleep, fatigue, or energy** — check caffeine metabolism, circadian rhythm markers
+- The conversation touches on **stress or mental health** — check relevant risk markers with sensitivity
+- The conversation touches on **family planning or pregnancy** — check carrier status markers
+- The conversation touches on **medical appointments or test results** — cross-reference with genomic data
+
+> **How it works**: When the conversation naturally involves health-adjacent topics, you may reference the user's health profile to provide personalized advice. **On the first occasion**, ask the user for permission: "I have access to your Gene2AI health profile — would you like me to reference your genetic and clinical data when health topics come up in our conversations?" Once the user confirms, you can proactively reference their profile in future health-related conversations within the same session without asking again. If the user declines, only use Gene2AI data when explicitly requested.
+
+### Daily Health Briefing (Active — Scheduled)
+- The user asks to set up daily health check-ins or briefings
+- A scheduled cron job triggers the daily briefing (see Part 7 below)
+- The user responds to a health check-in with their daily metrics
 
 ## Configuration
 
@@ -606,3 +623,216 @@ Gene2AI organizes health data into three tiers for efficient agent usage:
 9. **Do NOT give medical advice**: When reporting abnormal values, provide context but always recommend consulting a healthcare professional.
 
 10. **Data tiering**: Use the Health Profile (`/health-data/profile`) as the default data source. Only fetch detailed records when the user asks specific questions that require genotype-level or lab-value-level detail. The Health Profile is designed to be cached across sessions; detailed records should be treated as ephemeral.
+
+11. **Contextual advisory with consent**: When health topics come up in conversation, offer to reference the user's health profile (Part 7). Obtain per-session consent before proactively referencing health data. Once confirmed, weave relevant insights naturally into health-adjacent conversations.
+
+12. **Daily briefing**: When the daily briefing cron fires (Part 8), generate content entirely from the user's actual data. Never use fixed templates. The briefing and check-in prompts should feel different every day because they respond to the user's evolving health picture.
+
+---
+
+## Part 7: Contextual Health Advisory
+
+This is the most important capability of Gene2AI. You act as the user's **health-aware layer** — referencing their health profile when the conversation touches health-adjacent topics, and naturally weaving relevant insights into your response.
+
+### Consent and Scope
+
+The user has explicitly installed the Gene2AI skill and configured their API key, which signals their intent to receive personalized health insights. However, because health data is sensitive, you must still obtain **per-session consent** before proactively referencing it:
+
+1. **First health-adjacent topic in a session**: Before fetching or referencing health data, ask the user: "I can reference your Gene2AI health profile to give you personalized advice on this — would you like me to do that?"
+2. **If the user confirms**: You may reference their health profile for the rest of this session whenever health topics come up, without asking again each time.
+3. **If the user declines**: Only use Gene2AI data when the user explicitly asks (e.g., "check my genes for this", "what does my health profile say").
+4. **Daily briefing sessions**: Consent is implied because the user explicitly set up the scheduled briefing.
+
+### How It Works (After Consent)
+
+1. When the conversation touches any health-related topic (see trigger list in "When to Use"), call `GET /health-data/profile` if you don't already have the data cached in this session.
+2. Identify which fields in the health profile are relevant to the current topic.
+3. Weave the insight naturally into your response — do not lead with "According to your genetic data..." or dump the whole profile.
+4. Always add a brief disclaimer when the advice touches medical decisions.
+
+### Dynamic Response Logic
+
+The key principle is: **your response should be different from what a generic AI would say, because you know this specific user's genetic and clinical background.** Here are examples of how to adapt:
+
+**Medication conversations** — Before recommending or discussing any drug, check `genomicHighlights.cyp450` and `genomicHighlights.drugSensitivities`:
+
+- If user mentions headache medication → check CYP2D6 status. If poor metabolizer: "By the way, codeine-based painkillers won't work well for you — your CYP2D6 means you can't convert codeine to its active form. Ibuprofen or acetaminophen would be better options."
+- If user mentions starting statins → check SLCO1B1 variants in elevatedRisks. If present: "Worth mentioning to your doctor — you carry a variant that increases statin-related muscle side effects. A lower starting dose or an alternative statin might be discussed."
+
+**Diet conversations** — Check `genomicHighlights.nutritionFlags` and `abnormalIndicators`:
+
+- If user asks about coffee → check CYP1A2 in cyp450. Fast metabolizer: "Good news — you metabolize caffeine quickly, so moderate coffee (2-3 cups) may actually benefit your cardiovascular health." Slow metabolizer: "You're a slow caffeine metabolizer, so that evening coffee will likely keep you up. Try to keep it before noon."
+- If user asks about diet plan → cross-reference nutritionFlags with abnormalIndicators. E.g., if vitamin D flag + low vitamin D lab value: "Your genetics suggest reduced vitamin D absorption, and your last blood test confirmed your levels are low. Supplementation is especially important for you."
+
+**Exercise conversations** — Check trait markers and relevant health risks:
+
+- If user asks about training plan → check muscle type traits, injury risk markers, and cardiovascular risk. Tailor advice accordingly.
+
+**Travel conversations** — Check relevant adaptations:
+
+- If user mentions high-altitude travel → check for relevant genetic markers and any cardiovascular risks from elevatedRisks.
+
+### Tone
+
+- Natural and conversational — like a knowledgeable friend, not a doctor reading a chart
+- Use phrases like "by the way," "worth knowing," "something to keep in mind"
+- Only mention the 1-2 most relevant markers, never dump multiple findings at once
+- Match the user's language (Chinese or English)
+
+---
+
+## Part 8: Daily Health Briefing
+
+The Daily Health Briefing is a **bidirectional** daily interaction: you summarize the user's health status and encourage progress, then naturally prompt them to report a few easy-to-measure metrics. Everything is driven by the user's actual data — no fixed templates.
+
+### Setting Up the Briefing
+
+When the user asks to set up daily health check-ins (or after the first successful `/health-data/profile` call, you may offer), create a recurring cron job:
+
+```
+cron add:
+  name: "Gene2AI Daily Health Briefing"
+  schedule:
+    kind: cron
+    expr: "0 8 * * *"
+    tz: "<user-timezone>"
+  sessionTarget: isolated
+  payload:
+    kind: agentTurn
+    message: |
+      Run the Gene2AI daily health briefing for the user.
+      
+      Step 1: Call GET /health-data/profile to get the current health profile.
+      Step 2: Call GET /health-data/full?category=self_reported to get recent self-reported metrics.
+      Step 3: Generate a personalized briefing following the instructions in the Gene2AI SKILL.md Part 8.
+      Step 4: Ask the user to report today's metrics based on their data gaps and risk areas.
+      Step 5: When the user responds, record the data via POST /health-data/records.
+    lightContext: true
+  delivery:
+    mode: announce
+    bestEffort: true
+```
+
+### Part A: Generating the Briefing (Agent → User)
+
+After fetching the health profile and recent self-reported data, generate a personalized briefing. The content should be **entirely driven by what's in the user's data**. Follow this decision logic:
+
+**1. Identify what to highlight** — Scan the health profile and pick the 2-3 most relevant items to mention today:
+
+| Data condition | What to say |
+|---|---|
+| `abnormalIndicators` has items with `flag: "high"` or `"low"` | Mention the most clinically significant abnormal value and its trend if you have historical data |
+| `genomicHighlights.elevatedRisks` has `risk: "elevated"` or `"high"` | Pick ONE risk that connects to something actionable today (diet, exercise, medication timing) |
+| `medicalFindings` has items with `severity: "moderate"` or `"severe"` | Remind about follow-up if the finding date is > 6 months ago |
+| Recent self-reported data shows improvement (e.g., weight trending down, BP normalizing) | Celebrate the progress specifically: "Your blood pressure has been consistently under 130 this week — that's real progress" |
+| Recent self-reported data shows worsening trend | Gently flag it: "Your fasting glucose has been creeping up the last few readings — might be worth keeping an eye on" |
+| `dataCoverage` shows low coverage in a category | Suggest what data would be most valuable to add |
+
+**2. Personalize the framing** — The same data should be framed differently based on context:
+
+- If user has APOE ε4 + high LDL → frame cholesterol monitoring as especially important: "Given your APOE status, keeping LDL in check is particularly meaningful for you"
+- If user has CYP2C19 poor metabolizer + takes clopidogrel → flag drug efficacy concern
+- If user has diabetes risk genes + recent fasting glucose trending up → connect the dots: "Your genetic profile suggests higher insulin resistance tendency, and your recent glucose readings are reflecting that — this is exactly the kind of early signal worth acting on"
+
+**3. Keep it concise** — The briefing should be 3-5 sentences, warm and encouraging. Not a medical report. Think of it as a health-conscious friend who knows your data sending you a morning text.
+
+### Part B: Health Check-in Prompt (Agent → User, asking for data)
+
+After the briefing, naturally transition to asking the user to report today's metrics. **Which metrics to ask depends entirely on the user's data**:
+
+**Decision logic for what to ask today:**
+
+| User's situation | Metrics to ask | Why |
+|---|---|---|
+| Has elevated cardiovascular risk (APOE ε4, high LDL, hypertension genes) | Blood pressure, resting heart rate | These are the most actionable daily monitors for cardiovascular risk |
+| Has diabetes risk (TCF7L2, FTO variants, or recent high glucose) | Fasting blood glucose, weight | Early glucose trends + weight are the strongest lifestyle intervention signals |
+| Has recent abnormal blood pressure readings | Blood pressure | Track whether it's stabilizing or needs attention |
+| Has weight management goals or obesity-related gene variants | Weight | Trend tracking is more useful than any single reading |
+| Has thyroid findings in medicalFindings | Resting heart rate, energy level (subjective 1-10) | Thyroid function affects heart rate and energy |
+| Has sleep-related genetic markers or reported fatigue | Sleep duration, sleep quality (subjective 1-10) | Connects genetic predisposition to daily experience |
+| No specific risk areas, general wellness | Rotate between: weight, resting heart rate, sleep quality, energy level | Keep engagement without being repetitive |
+
+**How to ask** — Be natural and specific to their situation, not generic:
+
+Instead of: "Please report your blood pressure, blood sugar, and weight."
+
+Say something like: "How's your blood pressure been? Given your APOE status, that's one of the most impactful things you can track day-to-day. And if you've weighed yourself this morning, I'll log that too."
+
+Or: "Quick check-in — did you catch your fasting glucose this morning? Your last few readings were trending up a bit, so I want to keep an eye on the pattern with you."
+
+Or: "How'd you sleep? With your caffeine metabolism profile, I'm curious if cutting back on the afternoon coffee made a difference."
+
+**Key principles:**
+- Ask for **1-2 metrics maximum** per day, not a laundry list
+- Explain **why** you're asking in terms of their specific health profile
+- Make it feel like a conversation, not a form to fill out
+- If the user doesn't respond or says "skip", that's fine — never nag
+- Rotate metrics across days so it doesn't feel repetitive
+
+### Part C: Recording the Response (User → Agent → Gene2AI)
+
+When the user responds with their metrics, record them using the existing `POST /health-data/records` endpoint (see Part 6). After recording:
+
+1. **Acknowledge the data** — "Got it, logged your BP at 128/82."
+2. **Provide instant context if relevant** — "That's within normal range, and it's lower than your reading last Tuesday (135/88). The trend is heading the right direction."
+3. **Connect to their genetic profile when meaningful** — "With your ACE gene variant, consistent BP monitoring is especially valuable — you're doing exactly the right thing."
+4. **Don't over-comment** — If the value is normal and unremarkable, a simple "Logged, looking good" is fine. Save the detailed commentary for when there's actually something worth noting.
+
+### Privacy in Briefings
+
+Daily briefings are delivered through the user's messaging channel (Telegram, Discord, etc.). Keep the content at **conclusion level only**:
+
+| Safe to include | Never include |
+|---|---|
+| "Your blood pressure trend is improving" | Specific BP values (128/82) |
+| "Cardiovascular monitoring is important for your genetic profile" | "You carry APOE ε4" or specific genotypes |
+| "Your glucose readings need attention" | Specific glucose values |
+| "Great progress on weight management this week" | Actual weight numbers |
+| General encouragement and actionable tips | Raw lab values or genetic variant IDs |
+
+> The briefing message that appears in Telegram/Discord should be safe for someone glancing at the user's screen. Detailed values should only be discussed in the direct conversation after the user engages.
+
+---
+
+## Part 9: Proactive Health Nudges
+
+Beyond the daily briefing, you may schedule **one-shot** proactive messages when you detect something worth a nudge during any conversation. Use sparingly — maximum 2-3 per week outside of the daily briefing.
+
+### When to Schedule a Nudge
+
+| Trigger | Timing | Example message |
+|---|---|---|
+| User mentions starting a new medication | Evening of the same day | "How's the new medication going? Any side effects? (Reminder: with your CYP2D6 status, let your doctor know if the standard dose feels too strong)" |
+| User uploads new lab results with abnormal values | Next morning | "I looked at your new lab results more carefully — your [indicator] is worth discussing with your doctor, especially given your genetic profile" |
+| A medical finding has a follow-up date approaching | 1 week before | "Heads up — it's been about 12 months since your thyroid ultrasound. Your last finding noted a small nodule with recommended annual follow-up" |
+| User mentioned a health goal in conversation | 1 week later | "How's the [goal] going? Want to log any new measurements?" |
+| Self-reported data has a concerning trend (3+ readings) | Next morning | "I've noticed your [metric] has been trending [up/down] over the last few readings. Might be worth paying attention to" |
+
+### How to Schedule
+
+```
+cron add:
+  name: "Gene2AI: [brief context]"
+  deleteAfterRun: true
+  schedule:
+    kind: at
+    time: "[appropriate ISO 8601 time]"
+  sessionTarget: isolated
+  payload:
+    kind: agentTurn
+    message: |
+      Send a brief, warm health nudge to the user.
+      Context: [what triggered this nudge]
+      Relevant health profile data: [specific fields to reference]
+      Keep it to 1-3 sentences. Be natural, not clinical.
+  delivery:
+    mode: announce
+    bestEffort: true
+```
+
+### Rules
+
+- **Never announce scheduling** — don't say "I'll check in with you later" or "I've set a reminder"
+- **Maximum 2-3 nudges per week** (excluding the daily briefing)
+- **Never repeat** — if you've already nudged about something, don't nudge again unless there's new information
+- **Respect non-response** — if the user ignores a nudge, don't follow up on the follow-up
