@@ -1,11 +1,17 @@
 {
   "owner": "wsjwoods",
   "slug": "qianfan-usage",
-  "displayName": "Qianfan Coding Plan Usage",
+  "displayName": "Qianfan Usage",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773156025080,
-    "commit": "https://github.com/openclaw/skills/commit/ab764345499b75c1848a199f3bc6a26872394b93"
+    "version": "1.0.2",
+    "publishedAt": 1773336198725,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773156025080,
+      "commit": "https://github.com/openclaw/skills/commit/ab764345499b75c1848a199f3bc6a26872394b93"
+    }
+  ]
 }

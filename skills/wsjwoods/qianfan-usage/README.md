@@ -4,55 +4,138 @@
 
 ## 功能
 
-- 自动登录百度账号
-- 查询 Coding Plan 三级用量（5小时/周/月）
-- 保存登录状态，7天内免验证
-- 彩色显示使用率和重置时间
+- 🔍 自动检测 cookie 状态，失效时自动登录
+- 📊 查询 Coding Plan 三级用量（5小时/周/月）
+- 💾 保存登录状态，避免重复登录
+- 🎨 彩色显示使用率和重置时间
 
 ## 安装
 
 ```bash
-npx clawhub install qianfan-usage
+# 克隆仓库
+git clone https://github.com/wsjwoods/qianfan-usage.git
+cd qianfan-usage
 ```
 
 ## 使用方法
 
+### 快速查询（推荐）
+
 ```bash
-/qianfan-usage          # 自动登录并查询用量详情
-/qianfan-usage --web    # 打开百度千帆控制台
+python3 qianfan_usage.py
+```
+
+自动检测 cookie 状态：
+- ✅ 如果 cookie 有效，直接显示用量
+- 🔑 如果 cookie 失效，自动打开登录页面，输入验证码即可
+
+### 简化版（仅查询，需已登录）
+
+```bash
+python3 qianfan.py
+```
+
+### 完整版（带颜色和建议）
+
+```bash
+python3 check_quota_v2.py
 ```
 
 ## 配置
 
-在 `~/.openclaw/workspace/.env` 中设置手机号：
+### 环境变量（可选）
+
+设置手机号，避免每次输入：
+
+```bash
+export QIANFAN_PHONE=你的手机号
+```
+
+### Cookie 文件
+
+登录成功后，cookie 自动保存到：
+```
+~/.baidu-qianfan-auth.json
+```
+
+## API 端点
 
 ```
-QIANFAN_PHONE=你的手机号
+GET https://console.bce.baidu.com/api/qianfan/charge/codingPlan/quota
+```
+
+返回格式：
+```json
+{
+  "success": true,
+  "result": {
+    "quota": {
+      "fiveHour": { "used": 25, "limit": 1200, "resetAt": "..." },
+      "week": { "used": 2355, "limit": 9000, "resetAt": "..." },
+      "month": { "used": 2355, "limit": 18000, "resetAt": "..." }
+    }
+  }
+}
+```
+
+## 文件说明
+
+| 文件 | 说明 |
+|------|------|
+| `qianfan_usage.py` | ⭐ 主程序，自动检测 cookie + 自动登录 |
+| `qianfan.py` | 简化版，仅查询（需已登录） |
+| `check_quota_v2.py` | 完整版，带颜色和建议 |
+| `SKILL.md` | OpenClaw 技能描述 |
+
+## 项目结构
+
+```
+qianfan-usage/
+├── qianfan_usage.py      # ⭐ 主程序
+├── qianfan.py            # 简化版
+├── check_quota_v2.py     # 完整版
+├── README.md             # 文档
+├── SKILL.md              # OpenClaw 技能描述
+├── LICENSE               # MIT
+└── .gitignore            # 忽略敏感文件
 ```
 
 ## 依赖
 
-- [agent-browser](https://github.com/nicepkg/agent-browser) - 浏览器自动化
 - Python 3.8+
+- curl
+- [agent-browser](https://github.com/nicepkg/agent-browser)（用于自动登录）
 
 ## 输出示例
 
 ```
-═══════════════════════════════════════════════════════════
-              百度千帆 · Coding Plan 用量详情
-═══════════════════════════════════════════════════════════
+🔍 检查登录状态...
+✓ Cookie 有效，直接查询用量
 
-周期        已用     限额     剩余    使用率   重置时间
-────────────────────────────────────────────────────────────
-5小时        420    1200      780    35.0%   03-10 23:00
-周           581    9000     8419     6.5%   03-16 00:00
-月           581   18000    17419     3.2%   04-09 16:39
+╔══════════════════════════════════════════════════════════╗
+║          📊 百度千帆 · Coding Plan 用量详情              ║
+╚══════════════════════════════════════════════════════════╝
 
-═══════════════════════════════════════════════════════════
+⏱️  5小时周期:
+   已用: 25 / 1200 (2.1%)
+   剩余: 1175
+   重置: 03月13日 01:50
+
+📅 本周用量:
+   已用: 2355 / 9000 (26.2%)
+   剩余: 6645
+   重置: 03月16日 00:00
+
+📆 本月用量:
+   已用: 2355 / 18000 (13.1%)
+   剩余: 15645
+   重置: 04月09日 16:39
+
+══════════════════════════════════════════════════════════
 
 💡 使用建议：
-   • 用量正常，可以继续使用
-   • 月度额度剩余 96.8%，非常宽裕
+   • 用量正常 (2.1%)，可以继续使用
+   • 月度额度剩余 86.9%
 ```
 
 ## License
