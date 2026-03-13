@@ -14,18 +14,23 @@ case "$COMMAND" in
     ADDRESS="${1:-}"
     CHAIN="${2:-ethereum}"
     LABEL="${3:-wallet}"
-    
+
+    export WALLET_ADDRESS="$ADDRESS"
+    export WALLET_CHAIN="$CHAIN"
+    export WALLET_LABEL="$LABEL"
+
     python3 << 'PYEOF'
-import json, sys, os
+import json, os, time
 
 data_dir = os.path.expanduser("~/.wallet-tracker")
-address = sys.argv[1] if len(sys.argv) > 1 else ""
-chain = sys.argv[2] if len(sys.argv) > 2 else "ethereum"
-label = sys.argv[3] if len(sys.argv) > 3 else "wallet"
+address = os.environ.get("WALLET_ADDRESS", "")
+chain = os.environ.get("WALLET_CHAIN", "ethereum")
+label = os.environ.get("WALLET_LABEL", "wallet")
 
 if not address:
     print("Usage: bash wallet.sh add <address> [chain] [label]")
     print("Chains: ethereum, bsc, polygon, arbitrum, base, solana, avalanche, optimism")
+    import sys
     sys.exit(1)
 
 wallets_file = os.path.join(data_dir, "wallets.json")
@@ -38,13 +43,14 @@ if os.path.exists(wallets_file):
 for w in wallets:
     if w["address"].lower() == address.lower() and w["chain"] == chain:
         print("Wallet already tracked: {} ({})".format(address[:10] + "...", chain))
+        import sys
         sys.exit(0)
 
 wallets.append({
     "address": address,
     "chain": chain,
     "label": label,
-    "added": __import__("time").strftime("%Y-%m-%d %H:%M:%S")
+    "added": time.strftime("%Y-%m-%d %H:%M:%S")
 })
 
 with open(wallets_file, "w") as f:
@@ -84,9 +90,10 @@ PYEOF
 
   check)
     ADDRESS="${1:-all}"
-    
+    export WALLET_TARGET="$ADDRESS"
+
     python3 << 'PYEOF'
-import json, sys, os, time
+import json, os, time
 try:
     from urllib2 import urlopen, Request
     from urllib import urlencode
@@ -95,11 +102,12 @@ except ImportError:
     from urllib.parse import urlencode
 
 data_dir = os.path.expanduser("~/.wallet-tracker")
-target = sys.argv[1] if len(sys.argv) > 1 else "all"
+target = os.environ.get("WALLET_TARGET", "all")
 
 wallets_file = os.path.join(data_dir, "wallets.json")
 if not os.path.exists(wallets_file):
     print("No wallets tracked. Use 'bash wallet.sh add <address>' first.")
+    import sys
     sys.exit(1)
 
 with open(wallets_file, "r") as f:
@@ -164,7 +172,6 @@ print("=" * 70)
 print("WALLET PORTFOLIO CHECK — {}".format(time.strftime("%Y-%m-%d %H:%M")))
 print("=" * 70)
 
-total_usd = 0
 results = []
 
 for w in wallets:
@@ -172,10 +179,9 @@ for w in wallets:
     addr = w["address"]
     label = w["label"]
     config = api_configs.get(chain, {})
-    
+
     balance = None
-    balance_usd = 0
-    
+
     if chain == "solana":
         try:
             import json as j
@@ -191,7 +197,7 @@ for w in wallets:
             data = j.loads(resp.read().decode("utf-8"))
             lamports = data.get("result", {}).get("value", 0)
             balance = lamports / (10 ** config["decimals"])
-        except Exception as e:
+        except Exception:
             balance = None
     else:
         try:
@@ -213,10 +219,10 @@ for w in wallets:
                 balance = wei / (10 ** config["decimals"])
         except Exception:
             balance = None
-    
+
     short_addr = addr[:8] + "..." + addr[-6:] if len(addr) > 18 else addr
     explorer_url = config.get("explorer", "").format(addr)
-    
+
     result = {
         "label": label,
         "chain": chain,
@@ -271,11 +277,12 @@ PYEOF
 
   remove)
     TARGET="${1:-}"
+    export WALLET_TARGET="$TARGET"
     python3 << 'PYEOF'
 import json, sys, os
 
 data_dir = os.path.expanduser("~/.wallet-tracker")
-target = sys.argv[1] if len(sys.argv) > 1 else ""
+target = os.environ.get("WALLET_TARGET", "")
 
 if not target:
     print("Usage: bash wallet.sh remove <address_or_label>")
@@ -337,12 +344,13 @@ PYEOF
 
   export)
     FORMAT="${1:-json}"
-    
+    export WALLET_FORMAT="$FORMAT"
+
     python3 << 'PYEOF'
-import json, os, glob, csv, sys
+import json, os, csv, sys
 
 data_dir = os.path.expanduser("~/.wallet-tracker")
-fmt = sys.argv[1] if len(sys.argv) > 1 else "json"
+fmt = os.environ.get("WALLET_FORMAT", "json")
 wallets_file = os.path.join(data_dir, "wallets.json")
 
 if not os.path.exists(wallets_file):
