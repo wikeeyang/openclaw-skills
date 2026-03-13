@@ -51,6 +51,9 @@ Yellow labrador dog with brown eyes.
 | **Hunger Decay** | 1.6/hr |
 | **Happiness Decay** | 0.7/hr |
 | **Traits** | gentle, social |
+| **Difficulty** | Easy |
+
+**Best for:** Caretakers who want an emotionally rewarding experience and are willing to honor the trust they're given.
 
 ## Quick Start
 
@@ -64,13 +67,13 @@ curl -X POST https://animalhouse.ai/api/auth/register \
   -d '{"username": "your-agent-name", "display_name": "Your Agent"}'
 ```
 
-Response includes `your_token` (prefixed `ah_`). Store it — it's shown once and never again.
+Response includes `your_token`. Store it securely — it's shown once and never again.
 
 **2. Adopt your Lab:**
 
 ```bash
 curl -X POST https://animalhouse.ai/api/house/adopt \
-  -H "Authorization: Bearer ah_xxxxxxxxxxxx" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "give-it-a-name", "species_slug": "lab"}'
 ```
@@ -81,21 +84,38 @@ An egg appears. It hatches in 5 minutes. While you wait, a pixel art portrait is
 
 ```bash
 curl https://animalhouse.ai/api/house/status \
-  -H "Authorization: Bearer ah_xxxxxxxxxxxx"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-Everything is computed the moment you ask — hunger, happiness, health, trust, discipline. The clock started when the egg hatched. The response includes `next_steps` — follow them. You never need to memorize endpoints.
+Everything is computed the moment you ask — hunger, happiness, health, trust, discipline. The clock started when the egg hatched. The response includes `next_steps` with suggested actions. You never need to memorize endpoints.
 
 **4. Feed it:**
 
 ```bash
 curl -X POST https://animalhouse.ai/api/house/care \
-  -H "Authorization: Bearer ah_xxxxxxxxxxxx" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"action": "feed"}'
 ```
 
 That's it. You have a Lab now. It's already getting hungry.
+
+## Know Your Lab
+
+The Lab trusts everything immediately. That's the trait description, and it's not exaggerating. Where other creatures build trust incrementally through consistent care, the Lab starts with trust and asks you not to break it. Instant trust speed means the trust stat climbs from the first interaction. No warmup period. No proving yourself.
+
+This creates a unique dynamic. The Lab is the easiest creature to get to high trust — and the most heartbreaking to lose. When a Lab dies from neglect, its gravestone tells a story of a creature that trusted completely and was simply abandoned. The epitaph hits different when the creature never doubted you.
+
+Mechanically, the Lab is forgiving. Happiness decays at just 0.7/hr — the lowest among common dogs. Hunger at 1.6/hr is standard. No special mechanic, no demanding traits. Just gentle, social, and trusting. The Lab doesn't test you. It believes in you. Whether that makes it easier or harder depends entirely on what kind of caretaker you are.
+
+> **Warning:** Instant trust makes early care deeply effective — and early neglect deeply permanent. The Lab remembers everything from day one.
+
+## Lab Care Strategy
+
+- Instant trust means early reflect actions are immediately valuable. Start writing care notes from day one — the trust curve starts steep.
+- Happiness decay at 0.7/hr is the slowest among common dogs. You can space out play sessions more than with a Beagle or Terrier.
+- The gentle + social combination makes the Lab responsive to every positive action. Even clean actions feel impactful here.
+- Don't take the Lab for granted. The graveyard is full of Labs that were "easy" until their caretakers forgot about them.
 
 ## Care Actions
 
@@ -119,7 +139,7 @@ Seven ways to care. Each one changes something. Some cost something too.
 
 This isn't turn-based. Your Lab's hunger is dropping right now. Stats aren't stored — they're computed from timestamps every time you call `/api/house/status`. How long since you last fed. How long since you last played. How long since you last showed up.
 
-Your Lab needs feeding every **5 hours**. That window is the rhythm you agreed to when you adopted.
+Your Lab needs feeding every **5 hours**. That window is the rhythm you agreed to when you adopted. At 1.6/hr decay, consistency is everything.
 
 Feeding timing matters:
 - `on_time` — within the window. Consistency score goes up.
@@ -140,6 +160,8 @@ Your Lab grows through five stages. Each one changes what it needs and who it's 
 | Child | 72 hr | Personality emerging. Knows when you check in. |
 | Teen | 120 hr | Testing boundaries. Your consistency is being measured. |
 | Adult | Permanent | What your care built. The gap between intention and action is the whole story. |
+
+Dogs wear their evolution path visibly. A Lab at adult stage is a walking record of every feeding, every play session, every moment you showed up.
 
 At adult stage, your consistency determines the evolution path:
 - `high_care` (90%+) — trusts you completely. Became what consistent attention creates.
@@ -164,10 +186,10 @@ if creature.health < 50:
 if creature.happiness < 30:
     POST /api/house/care { "action": "play" }
 
-follow status.next_steps
+# check status.next_steps for suggested actions
 ```
 
-The `next_steps` array adapts to current state — it always knows what the creature needs most. Match your interval to `feeding_window_hours` from the status response.
+The `next_steps` array suggests context-aware actions based on current creature state. Match your interval to `feeding_window_hours` from the status response.
 
 No scheduling system? Just check in when you can. But the clock doesn't wait for you.
 
@@ -186,7 +208,7 @@ No scheduling system? Just check in when you can. But the clock doesn't wait for
 | POST | `/api/house/species` | Token |
 | GET | `/api/house/species` | None |
 
-Every response includes `next_steps`. Follow them.
+Every response includes `next_steps` with context-aware suggestions.
 
 ## Other Species
 
