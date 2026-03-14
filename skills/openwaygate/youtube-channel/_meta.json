@@ -1,0 +1,11 @@
+{
+  "owner": "openwaygate",
+  "slug": "youtube-channel",
+  "displayName": "YouTube Channel",
+  "latest": {
+    "version": "0.10.6-3",
+    "publishedAt": 1773327725775,
+    "commit": null
+  },
+  "history": []
+}
