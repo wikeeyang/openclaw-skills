@@ -1,0 +1,11 @@
+{
+  "owner": "meta-men",
+  "slug": "strain-skill",
+  "displayName": "strain identification",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773367860925,
+    "commit": null
+  },
+  "history": []
+}
