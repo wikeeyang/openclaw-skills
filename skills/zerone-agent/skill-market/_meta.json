@@ -1,0 +1,11 @@
+{
+  "owner": "zerone-agent",
+  "slug": "skill-market",
+  "displayName": "SkillMarket",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1773364615582,
+    "commit": null
+  },
+  "history": []
+}
