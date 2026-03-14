@@ -1,0 +1,11 @@
+{
+  "owner": "paulieb14",
+  "slug": "subgraph-registry",
+  "displayName": "Subgraph Registry",
+  "latest": {
+    "version": "0.3.0",
+    "publishedAt": 1773350372493,
+    "commit": null
+  },
+  "history": []
+}
