@@ -1,0 +1,11 @@
+{
+  "owner": "ezviz-open",
+  "slug": "ezviz-open-capture",
+  "displayName": "Ezviz Open Capture Phone Detect",
+  "latest": {
+    "version": "1.0.10",
+    "publishedAt": 1773407187544,
+    "commit": null
+  },
+  "history": []
+}
