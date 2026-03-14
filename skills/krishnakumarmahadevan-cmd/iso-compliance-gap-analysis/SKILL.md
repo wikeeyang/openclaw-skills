@@ -230,12 +230,10 @@ curl -s -X POST "https://portal.toolweb.in/apis/compliance/iso-gap-analysis" \
 ## Pricing
 
 - API access via portal.toolweb.in subscription plans
-- Starter: ₹2,999/month (~$36) — 500 API calls
-- Professional: ₹9,999/month (~$120) — 5,000 API calls
-- Enterprise: ₹49,999/month (~$600) — Unlimited API calls
-- Free trial: 10 API calls to test the skill
-
-**International Users (USA, UK, Europe):** At checkout, select **PayPal** as your payment method to pay in USD, EUR, GBP, or 6 other international currencies. PayU processes the conversion automatically.
+- Free trial: 10 API calls/day, 50 API calls/month to test the skill
+- Developer: $39/month — 20 calls/day and 500 calls/month
+- Professional: $99/month — 200 calls/day, 5000 calls/month
+- Enterprise: $299/month — 100K calls/day, 1M calls/month
 
 ##About
 
