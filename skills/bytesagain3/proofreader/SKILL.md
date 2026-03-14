@@ -1,9 +1,6 @@
 ---
 name: proofreader
-version: 1.0.0
-description: 校对/错别字检查、语法纠错、文风统一、一致性检查、可读性评分、校对报告。Proofreading with typo detection, grammar correction, style consistency, readability scoring, and full reports.
-author: BytesAgain
-tags: [proofread, grammar, typo, style, readability, 校对, 纠错, 错别字, 语法, 文风]
+description: "校对/错别字检查、语法纠错、文风统一、一致性检查、可读性评分、校对报告。Proofreading with typo detection, grammar correction, style consistency, readability scoring, and full reports. Use when you need proofreader capabilities. Triggers on: proofreader."
 ---
 # proofreader
 
@@ -39,3 +36,6 @@ A: 主要输出Markdown格式，方便复制和编辑。
 
 ---
 *proofreader by BytesAgain*
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
