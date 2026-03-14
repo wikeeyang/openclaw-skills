@@ -23,6 +23,15 @@
 - Added overlap detection and canonical-first fusion view.
 - Added a hard boundary: newly downloaded skills may not perform risk operations without explicit user approval.
 
+## 2026-03-13 (public package slimming)
+- Slimmed the published package to emphasize taxonomy/routing rules and classification schema.
+- Excluded host-specific automation scripts, local indexes, intake state, and cleanup helpers from the public package.
+- Kept the local workspace version fully featured for private governance workflows.
+
+## 2026-03-13 (public package consistency fix)
+- Removed direct references to unbundled local scripts and local logging mechanics from the published SKILL.md.
+- Clarified that the public package is policy-only and host-agnostic, while heavier automation belongs in local/private extensions.
+
 ## 2026-03-13 09:22
 - Rebuilt skill-index.md (674 skills; 88 classified; 586 backlog).
 
@@ -31,3 +40,12 @@
 
 ## 2026-03-13 11:06
 - Rebuilt skill-index.md (674 skills; 170 classified; 504 backlog).
+
+## 2026-03-13 12:50
+- Rebuilt skill-index.md (674 skills; 170 classified; 504 backlog).
+
+## 2026-03-13 12:54
+- Rebuilt skill-index.md (674 skills; 274 classified; 400 backlog).
+
+## 2026-03-13 13:56
+- Rebuilt skill-index.md (674 skills; 341 classified; 333 backlog).

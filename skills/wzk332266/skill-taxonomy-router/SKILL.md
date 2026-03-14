@@ -6,6 +6,7 @@ description: Route user tasks to the most relevant skills using a layered taxono
 # Skill Router
 
 Use this skill to classify skills, choose which skill(s) to load for a task, and assess risk before loading action-capable skills.
+Use the lightweight conversational rules first. Start from compact summaries of the skill pool and only drill into individual skills when deeper routing help is actually needed.
 
 ## Core policy
 
@@ -17,6 +18,7 @@ Follow this priority order:
 5. Expand only if blocked
 
 Do not load skills mechanically. Load the single most specific relevant skill first. Add a second skill only when it clearly fills a missing capability.
+Also do not invoke the full skill-router workflow more than needed: start from summarized pool/index views, then drill into individual skills only when the task actually needs deeper routing help.
 
 ## Domain taxonomy
 
@@ -162,7 +164,7 @@ When a task arrives, do this:
    - lower context cost
 9. If task is ambiguous, stay with the least risky useful skill or ask only one clarifying question.
 10. If task needs no skill, use built-in tools directly.
-11. After a skill is actually chosen and used, local implementations may optionally record the routing decision as part of their own private governance workflow.
+11. After a skill is actually chosen and used, treat routing-decision logging as the default post-action: record the chosen skill(s) with `python3 scripts/log_routing_decision.py ...` unless there is a concrete reason not to.
 
 ## Multi-skill composition rules
 Use multiple skills only when roles are distinct, for example:
@@ -212,12 +214,17 @@ Use this workflow to keep the router current:
 3. If a skill is clearly important or likely to be used, move it from backlog into the manual mapping in `scripts/update_skill_index.py`.
 4. Rebuild the index again after updating the mapping.
 5. Run `python3 scripts/review_new_skills.py` to detect repeated backlog patterns that may justify a new subdomain.
-6. Keep `references/change-log.md` short and append-only.
+6. Start from compact summaries of the skill pool instead of pulling the full index into chat.
+7. Keep `references/change-log.md` short and append-only.
 
 ## Usage tracking
-Track skill frequency over time using local/private governance mechanisms if desired.
-In the public package, treat usage tracking as a recommended practice rather than a bundled capability.
-Use frequency as a prioritization signal for backlog classification: high-use backlog-adjacent domains should be reviewed first.
+Track skill frequency over time:
+- Preferred path: when a routing choice is made, log it with `python3 scripts/log_routing_decision.py --intent <...> --domain <...> --subdomain <...> --risk <...> --skills <skill...> [--candidates ...] [--reason ...]`.
+- Treat this as the default route-post action, not an optional extra, whenever a skill is clearly used.
+- This both records the routing decision and increments usage counts for the chosen skills.
+- Direct usage-only fallback: `python3 scripts/track_skill_usage.py mark <skill-name> [...]`.
+- To see high-frequency skills, run `python3 scripts/track_skill_usage.py report --limit 30`.
+- Use frequency as a prioritization signal for backlog classification: high-use backlog-adjacent domains should be reviewed first.
 
 ## Taxonomy expansion rule
 Do not force every new skill into an ill-fitting old bucket.
@@ -226,6 +233,7 @@ When newly added skills repeatedly:
 - match existing subdomains only weakly,
 - or form a recurring theme not well represented,
 then create or split a subdomain.
+Use `python3 scripts/review_new_skills.py` to generate a review report for this.
 
 ## Backlog prioritization
 Do not work backlog in arbitrary order.
@@ -234,6 +242,7 @@ Prioritize formal classification for skills that are:
 - likely to appear often,
 - action-capable or higher-risk,
 - or part of a repeated backlog cluster.
+Use `python3 scripts/prioritize_backlog.py` to generate a recommended next-batch report.
 
 ## Overlap detection and fusion
 When new skills arrive, check for overlap before treating every skill as independent.
@@ -244,15 +253,28 @@ Two safe automation layers are allowed:
 Do NOT do destructive file/content merges automatically.
 If overlapping skills contain materially different instructions, scripts, or design choices, ask the user before any content-level merge.
 
-## Download intake workflow
-Use a temporary intake stage for newly downloaded skills rather than granting them immediate trust.
+Use:
+- `python3 scripts/detect_skill_overlap.py` to detect likely duplicate/variant families.
+- `python3 scripts/apply_overlap_fusion.py` to generate a canonical-first fusion view.
+
+## Download inbox workflow
+Use a single temporary download folder for newly downloaded skills:
+- New, unreviewed downloads go to `~/Desktop/skills-inbox`.
+- After skills are reviewed, organized, and incorporated into the router process, do not maintain a second permanent reviewed folder on the Desktop.
+- When the batch has been fully processed, delete the inbox folder.
 
 Rules:
 - Downloading a skill does not make it trusted.
-- Newly downloaded skills should be reviewed before they influence routing priority.
+- Skills in inbox are unreviewed by default and should not perform risk operations.
+- Reviewing/organizing a skill means classifying it, checking overlap, and deciding routing priority or de-prioritization.
 - Before downloading a new skill, check the existing organized/classified skill set to avoid redundant downloads and unnecessary overlap.
 - New-skill risk operations still require explicit user approval.
-- The public package does not bundle any downloader, logger, or cleanup scripts; implement those locally if needed.
+
+Preferred intake path:
+- Use `python3 scripts/intake_skill.py <skill-name>` for high-automation intake.
+- This checks overlap against the organized skill set, downloads into `~/Desktop/skills-inbox` only when appropriate, and records intake state for later review.
+
+Use `python3 scripts/cleanup_download_inbox.py --yes` to remove the Desktop inbox folder after the import batch is fully processed.
 
 ## External risk signals
 When available, use external risk/security signals to speed up review:
@@ -260,14 +282,31 @@ When available, use external risk/security signals to speed up review:
 - If a skill comes from outside ClawHub or through a manual copy/import path, proactively screen it before giving it routing priority.
 - Treat non-ClawHub skills as needing more active review than registry-installed skills.
 
+Use `python3 scripts/review_risk_sources.py` to generate a review list for suspicious/high-risk/nonstandard sources.
+
 ## Files in this skill
+- `references/skill-index.md`: current installed-skill index
 - `references/change-log.md`: compact history of taxonomy/index changes
 - `references/skill-classification-schema.md`: schema/checklist for classification decisions
-
-## Public package note
-This public package intentionally ships the routing taxonomy, review rules, and classification schema as a lightweight policy-only governance skill.
-It does not bundle local automation scripts, local indexes, intake state, persistent logging/telemetry code, overlap reports, or destructive/host-specific helpers.
-Use local/private extensions if you need heavier automation in a specific host environment.
+- `references/usage-stats.json`: usage counters for skills chosen in practice
+- `references/routing-decisions.jsonl`: append-only routing decision log
+- `references/new-skill-review.md`: report of backlog clusters and possible taxonomy gaps
+- `references/backlog-priority.md`: prioritized backlog report for next formal classifications
+- `references/skill-overlap-report.md`: likely duplicate/variant families
+- `references/skill-overlap-map.json`: canonical-to-variants overlap map
+- `references/skill-fusion-view.md`: canonical-first routing/index view
+- `references/risk-source-review.md`: review list for suspicious/high-risk/nonstandard-source skills
+- `scripts/update_skill_index.py`: rebuilds the installed-skill index from current skills
+- `scripts/cleanup_download_inbox.py`: deletes the Desktop inbox folder after a batch is fully processed
+- `scripts/review_risk_sources.py`: generates a review list using source/risk signals
+- `scripts/check_download_overlap.py`: checks a candidate download against the existing organized/classified skill set
+- `scripts/intake_skill.py`: high-automation intake that checks overlap, downloads to inbox, and records intake state
+- `scripts/track_skill_usage.py`: marks skill usage and reports high-frequency skills
+- `scripts/log_routing_decision.py`: logs a routing decision and increments chosen-skill usage in one step
+- `scripts/review_new_skills.py`: scans backlog/new skills for taxonomy expansion signals
+- `scripts/prioritize_backlog.py`: scores backlog skills and suggests the next classification batches
+- `scripts/detect_skill_overlap.py`: detects duplicate/variant skill families
+- `scripts/apply_overlap_fusion.py`: generates a canonical-first fusion view without destructive merging
 
 ## Output format for future routing decisions
 When useful, summarize chosen routing in this compact form:
