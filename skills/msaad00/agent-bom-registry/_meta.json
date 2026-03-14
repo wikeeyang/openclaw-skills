@@ -1,0 +1,11 @@
+{
+  "owner": "msaad00",
+  "slug": "agent-bom-registry",
+  "displayName": "agent-bom registry",
+  "latest": {
+    "version": "0.70.7",
+    "publishedAt": 1773429283275,
+    "commit": null
+  },
+  "history": []
+}
